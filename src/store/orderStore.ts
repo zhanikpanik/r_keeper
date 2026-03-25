@@ -60,8 +60,8 @@ const mockItems: OrderItem[] = [
 export const useOrderStore = create<OrderState>((set, get) => ({
   items: mockItems,
   guests: mockGuests,
-  selectedItemId: 'item_3', 
-  activeAction: 'modifiers',
+  selectedItemId: null, 
+  activeAction: null,
   activeCategoryId: 'hot',
 
   addGuest: () => {

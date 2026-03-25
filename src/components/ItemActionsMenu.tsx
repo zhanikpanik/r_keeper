@@ -4,193 +4,126 @@ import { theme } from '../theme/colors';
 import { useOrderStore } from '../store/orderStore';
 import { ActiveAction } from '../types';
 
-const MENU_CATEGORIES = [
-  { id: 'hot', name: 'Горячее' },
-  { id: 'kids', name: 'Детское' },
-  { id: 'bar', name: 'Бар' },
-  { id: 'desserts', name: 'Десерты' },
-  { id: 'salads', name: 'Салаты' },
+const COLS = 2;
+const ROWS = 5;
+const GAP = 4;
+
+type ActionDef = { action: ActiveAction; label: string } | { action: 'delete'; label: string } | null;
+
+const ACTIONS: ActionDef[] = [
+  { action: 'modifiers', label: 'Модификатор' },
+  { action: 'quantity',  label: 'Количество' },
+  { action: 'guest',     label: 'Гость' },
+  { action: 'course',    label: 'Курс' },
+  { action: 'combo',     label: 'Комбо' },
+  { action: 'move',      label: 'Перенести' },
+  { action: 'delete',    label: 'Удалить' },
+  null, // empty
+  null, // empty
+  null, // empty
 ];
 
 export const ItemActionsMenu: React.FC = () => {
-  const { items, selectedItemId, activeAction, setActiveAction, removeProduct, selectItem, activeCategoryId, setActiveCategory } = useOrderStore();
-  
-  const selectedItem = items.find(item => item.id === selectedItemId);
+  const { items, selectedItemId, activeAction, setActiveAction, removeProduct } = useOrderStore();
+  const selectedItem = items.find(i => i.id === selectedItemId);
+  if (!selectedItem) return null;
 
-  // When no item is selected, render the Category Menu (Single Column)
-  if (!selectedItem) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.headerText}>Меню</Text>
-        </View>
-        <View style={styles.grid}>
-          {MENU_CATEGORIES.map((cat) => {
-            const isActive = activeCategoryId === cat.id;
-            return (
-              <View key={cat.id} style={styles.singleColumnWrapper}>
-                <TouchableOpacity 
-                  style={[styles.gridItem, isActive && styles.activeCategoryItem]}
-                  onPress={() => setActiveCategory(cat.id)}
-                >
-                  <Text style={isActive ? styles.activeCategoryText : styles.itemText}>{cat.name}</Text>
-                </TouchableOpacity>
-              </View>
-            );
-          })}
-          {/* Fill remaining slots to match the grid visually if needed */}
-          {[...Array(Math.max(0, 7 - MENU_CATEGORIES.length))].map((_, i) => (
-            <View key={`empty-${i}`} style={styles.singleColumnWrapper}><View style={styles.gridItemEmpty} /></View>
-          ))}
-        </View>
-      </View>
-    );
+  // Pad to fill grid
+  const cells = [...ACTIONS];
+  while (cells.length < COLS * ROWS) cells.push(null);
+
+  // Build rows
+  const rows: (ActionDef)[][] = [];
+  for (let r = 0; r < ROWS; r++) {
+    rows.push(cells.slice(r * COLS, r * COLS + COLS));
   }
-
-  // When an item IS selected, render the Actions Menu (Two Columns)
-  const renderAction = (action: ActiveAction, label: string) => {
-    const isActive = activeAction === action;
-    return (
-      <View style={styles.gridItemWrapper} key={action}>
-        <TouchableOpacity 
-          style={[styles.gridItem, isActive && styles.activeItem]}
-          onPress={() => setActiveAction(action)}
-        >
-          <Text style={isActive ? styles.activeItemText : styles.itemText}>{label}</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  };
 
   return (
     <View style={styles.container}>
+      {/* Header — selected product name */}
       <View style={styles.header}>
         <Text style={styles.headerText} numberOfLines={1}>{selectedItem.product.name}</Text>
       </View>
-      
+
+      {/* Actions grid */}
       <View style={styles.grid}>
-        {/* Row 1 */}
-        {renderAction('modifiers', 'Модификатор')}
-        {renderAction('quantity', 'Количество')}
-        
-        {/* Row 2 */}
-        {renderAction('guest', 'Гость')}
-        {renderAction('course', 'Курс')}
-        
-        {/* Row 3 */}
-        {renderAction('combo', 'Комбо')}
-        {renderAction('move', 'Перенести')}
+        {rows.map((row, ri) => (
+          <View key={ri} style={[styles.row, ri < ROWS - 1 && { marginBottom: GAP }]}>
+            {row.map((cell, ci) => {
+              const key = `${ri}-${ci}`;
+              if (!cell) {
+                return <View key={key} style={[styles.cellWrap, ci < COLS - 1 && { marginRight: GAP }]}><View style={styles.emptyCell} /></View>;
+              }
 
-        {/* Row 4 */}
-        <View style={styles.gridItemWrapper}>
-          <TouchableOpacity 
-            style={styles.gridItem} 
-            onPress={() => removeProduct(selectedItem.id)}
-          >
-            <Text style={styles.itemText}>Удалить</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.gridItemWrapper}><View style={styles.gridItemEmpty} /></View>
-        
-        {/* Row 5 */}
-        <View style={styles.gridItemWrapper}><View style={styles.gridItemEmpty} /></View>
-        <View style={styles.gridItemWrapper}><View style={styles.gridItemEmpty} /></View>
+              const isActive = cell.action !== 'delete' && activeAction === cell.action;
+              const isDelete = cell.action === 'delete';
+
+              const handlePress = () => {
+                if (isDelete) {
+                  removeProduct(selectedItem.id);
+                } else {
+                  setActiveAction(cell.action as ActiveAction);
+                }
+              };
+
+              return (
+                <View key={key} style={[styles.cellWrap, ci < COLS - 1 && { marginRight: GAP }]}>
+                  <TouchableOpacity
+                    style={[
+                      styles.actionBtn,
+                      isActive && styles.actionActive,
+                    ]}
+                    onPress={handlePress}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.actionText, isActive && styles.actionTextActive]}>
+                      {cell.label}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+          </View>
+        ))}
       </View>
-
-      <TouchableOpacity style={styles.cancelButton} onPress={() => selectItem(null)}>
-        <Text style={styles.cancelText}>Отмена</Text>
-      </TouchableOpacity>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: theme.colors.divider,
-    backgroundColor: theme.colors.surfaceDeep,
-  },
+  container: { flex: 1, backgroundColor: theme.colors.surfaceDeep },
   header: {
-    height: 48,
-    backgroundColor: theme.colors.surfaceLight,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.divider,
   },
-  headerText: {
-    color: theme.colors.textPrimary,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  headerTextDisabled: {
-    color: theme.colors.textSecondary,
-    fontSize: 16,
-    fontStyle: 'italic',
-  },
-  grid: {
-    flex: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: 2, // Global padding to create gap from edges
-    alignContent: 'flex-start', // Prevent items from spreading out vertically too much
-  },
-  gridItemWrapper: {
-    width: '50%',
-    height: '20%', // 5 rows total to fill space for actions
-    padding: 2, 
-  },
-  singleColumnWrapper: {
-    width: '100%',
-    height: '14.28%', // 7 rows total to fill space for categories (100 / 7)
-    padding: 2,
-  },
-  gridItem: {
+  headerText: { color: theme.colors.textPrimary, fontSize: 15, fontWeight: '600' },
+
+  grid: { flex: 1, padding: GAP },
+  row: { flex: 1, flexDirection: 'row' },
+  cellWrap: { flex: 1 },
+
+  actionBtn: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: theme.colors.surfaceLight,
     borderRadius: theme.borderRadius,
+    paddingHorizontal: 4,
   },
-  gridItemEmpty: {
-    flex: 1,
-    backgroundColor: 'transparent',
-  },
-  activeItem: {
+  actionActive: {
     backgroundColor: theme.colors.actionMenuPurple,
   },
-  activeCategoryItem: {
-    backgroundColor: theme.colors.surfaceLight,
-    borderWidth: 2,
-    borderColor: theme.colors.tabActive,
-  },
-  activeItemText: {
+  actionText: {
     color: theme.colors.textPrimary,
-    fontSize: 16,
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  actionTextActive: {
     fontWeight: 'bold',
   },
-  activeCategoryText: {
-    color: theme.colors.tabActive,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  itemText: {
-    color: theme.colors.textPrimary,
-    fontSize: 16,
-  },
-  cancelButton: {
-    height: 64,
-    backgroundColor: theme.colors.btnRed,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: theme.borderRadius,
-    margin: 8,
-  },
-  cancelText: {
-    color: theme.colors.textPrimary,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+  emptyCell: { flex: 1 },
 });

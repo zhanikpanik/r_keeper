@@ -3,219 +3,128 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../theme/colors';
 import { useOrderStore } from '../store/orderStore';
-import { Modifier, Product } from '../types';
+import { modifierGroups } from '../mocks/menuData';
+import { Modifier } from '../types';
 import { QuantityNumpad } from './QuantityNumpad';
 
-const AVAILABLE_MODIFIERS: Modifier[] = [
-  { id: 'm1', name: 'Лук', price: 0 },
-  { id: 'm2', name: 'Помидор', price: 30 },
-  { id: 'm3', name: 'Огурец', price: 20 },
-];
-
-const MOCK_PRODUCTS: Record<string, Product[]> = {
-  'hot': [
-    { id: 'p1', categoryId: 'hot', name: 'Биг Тейсти', price: 210 },
-    { id: 'p2', categoryId: 'hot', name: 'Салат оливье', price: 320 },
-    { id: 'p3', categoryId: 'hot', name: 'Пицца «Гурман»', price: 240 },
-    { id: 'p4', categoryId: 'hot', name: 'Борщ', price: 180 },
-  ],
-  'kids': [
-    { id: 'k1', categoryId: 'kids', name: 'Наггетсы', price: 150 },
-    { id: 'k2', categoryId: 'kids', name: 'Картофель фри', price: 100 },
-  ],
-  'bar': [
-    { id: 'b1', categoryId: 'bar', name: 'Кока-кола', price: 90 },
-    { id: 'b2', categoryId: 'bar', name: 'Латте', price: 150 },
-    { id: 'b3', categoryId: 'bar', name: 'Эспрессо', price: 120 },
-  ],
-};
+const COLS = 3;
+const ROWS = 5;
+const GAP = 4;
+const TOTAL_CELLS = COLS * ROWS; // 15
 
 export const ModifierGrid: React.FC = () => {
-  const { items, selectedItemId, activeAction, toggleModifier, selectItem, activeCategoryId, addProduct } = useOrderStore();
-  
-  const selectedItem = items.find(item => item.id === selectedItemId);
-  const isModifiersActive = activeAction === 'modifiers' && selectedItem;
-  const isQuantityActive = activeAction === 'quantity' && selectedItem;
+  const { items, selectedItemId, activeAction, toggleModifier } = useOrderStore();
+  const selectedItem = items.find(i => i.id === selectedItemId);
 
-  if (isQuantityActive) {
+  // Quantity mode → show numpad
+  if (activeAction === 'quantity' && selectedItem) {
     return <QuantityNumpad />;
   }
 
-  const renderGridContent = () => {
-    // Mode 1: Editing Modifiers for a selected item
-    if (isModifiersActive) {
-      const itemModifiersIds = selectedItem.modifiers.map(m => m.id);
-      return (
-        <>
-          {AVAILABLE_MODIFIERS.map((mod) => {
-            const isSelected = itemModifiersIds.includes(mod.id);
-            return (
-              <View key={mod.id} style={styles.gridItemWrapper}>
-                <TouchableOpacity 
-                  style={[styles.gridItem, isSelected && styles.gridItemSelected]}
-                  onPress={() => toggleModifier(mod)}
-                >
-                  <Text style={[styles.itemText, isSelected && styles.itemTextSelected]}>
-                    {mod.name}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            );
-          })}
-          {/* Fill remaining space */}
-          {[...Array(15 - AVAILABLE_MODIFIERS.length)].map((_, i) => (
-            <View key={`empty-${i}`} style={styles.gridItemWrapper}><View style={styles.gridItemEmpty} /></View>
-          ))}
-        </>
-      );
-    }
+  // Modifier mode → show modifier grid
+  const isModifiers = activeAction === 'modifiers' && !!selectedItem;
 
-    // Mode 2: No item selected, display products for the active category
-    if (!selectedItem) {
-      const products = MOCK_PRODUCTS[activeCategoryId] || [];
-      return (
-        <>
-          {products.map((product) => (
-            <View key={product.id} style={styles.gridItemWrapper}>
-              <TouchableOpacity 
-                style={[styles.gridItem, styles.productItem]}
-                onPress={() => addProduct(product)}
-              >
-                <Text style={styles.productName}>{product.name}</Text>
-                <Text style={styles.productPrice}>{product.price} ₽</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
-          {/* Fill remaining space */}
-          {[...Array(15 - products.length)].map((_, i) => (
-            <View key={`empty-prod-${i}`} style={styles.gridItemWrapper}><View style={styles.gridItemEmpty} /></View>
-          ))}
-        </>
-      );
-    }
+  // Use first modifier group for now (TODO: allow switching groups with < arrow)
+  const activeGroup = modifierGroups[0];
+  const modifiers = isModifiers ? activeGroup.modifiers : [];
+  const headerTitle = isModifiers ? activeGroup.name : '';
 
-    // Mode 3: Item selected, but not on Modifiers action (e.g. Quantity)
-    return [...Array(15)].map((_, i) => (
-      <View key={`empty-action-${i}`} style={styles.gridItemWrapper}><View style={styles.gridItemEmpty} /></View>
-    ));
-  };
+  const itemModifierIds = selectedItem?.modifiers.map(m => m.id) || [];
+
+  // Build cells
+  type Cell = { kind: 'modifier'; mod: Modifier } | { kind: 'empty' };
+  const cells: Cell[] = modifiers.map(m => ({ kind: 'modifier' as const, mod: m }));
+  while (cells.length < TOTAL_CELLS) cells.push({ kind: 'empty' });
+
+  // Build rows
+  const rows: Cell[][] = [];
+  for (let r = 0; r < ROWS; r++) {
+    rows.push(cells.slice(r * COLS, r * COLS + COLS));
+  }
 
   return (
     <View style={styles.container}>
+      {/* Header with back arrow + title */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton}>
-          <Feather name="chevron-left" size={24} color={theme.colors.textSecondary} />
+        <TouchableOpacity style={styles.headerBack}>
+          <Feather name="chevron-left" size={22} color={theme.colors.textSecondary} />
         </TouchableOpacity>
-        <Text style={styles.headerText}>
-          {!selectedItem ? 'Блюда' : (isModifiersActive ? 'Начинка' : '')}
-        </Text>
-        <View style={styles.headerRight} />
-      </View>
-      
-      <View style={styles.grid}>
-        {renderGridContent()}
+        <Text style={styles.headerText}>{headerTitle}</Text>
+        <View style={styles.headerBack} />
       </View>
 
-      <TouchableOpacity 
-        style={[styles.doneButton, !selectedItem && { backgroundColor: theme.colors.surfaceLight }]} 
-        onPress={() => selectItem(null)}
-      >
-        <Text style={[styles.doneText, !selectedItem && { color: theme.colors.textSecondary }]}>
-          {selectedItem ? 'Готово' : 'Выберите блюдо'}
-        </Text>
-      </TouchableOpacity>
+      {/* Grid */}
+      <View style={styles.grid}>
+        {rows.map((row, ri) => (
+          <View key={ri} style={[styles.row, ri < ROWS - 1 && { marginBottom: GAP }]}>
+            {row.map((cell, ci) => (
+              <View key={ci} style={[styles.cellWrap, ci < COLS - 1 && { marginRight: GAP }]}>
+                {cell.kind === 'modifier' ? (
+                  <TouchableOpacity
+                    style={[
+                      styles.modBtn,
+                      itemModifierIds.includes(cell.mod.id) && styles.modActive,
+                    ]}
+                    onPress={() => toggleModifier(cell.mod)}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.modText,
+                        itemModifierIds.includes(cell.mod.id) && styles.modTextActive,
+                      ]}
+                      numberOfLines={2}
+                    >
+                      {cell.mod.name}
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.emptyCell} />
+                )}
+              </View>
+            ))}
+          </View>
+        ))}
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.surfaceDeep,
-  },
+  container: { flex: 1, backgroundColor: theme.colors.surfaceDeep },
   header: {
-    height: 48,
-    backgroundColor: theme.colors.surfaceDeep,
+    height: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.divider,
   },
-  backButton: {
-    width: 48,
-    height: 48,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerText: {
-    color: theme.colors.textPrimary,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  headerRight: {
-    width: 48,
-  },
-  grid: {
-    flex: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: 2,
-  },
-  gridItemWrapper: {
-    width: '33.33%',
-    height: '20%', // 5 rows
-    padding: 2,
-  },
-  gridItem: {
+  headerBack: { width: 44, justifyContent: 'center', alignItems: 'center' },
+  headerText: { flex: 1, color: theme.colors.textPrimary, fontSize: 15, fontWeight: '600', textAlign: 'center' },
+
+  grid: { flex: 1, padding: GAP },
+  row: { flex: 1, flexDirection: 'row' },
+  cellWrap: { flex: 1 },
+
+  modBtn: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: theme.colors.surfaceLight, // Same as menu for consistency
-    borderRadius: theme.borderRadius,
-  },
-  gridItemSelected: {
-    backgroundColor: theme.colors.orderItemActive,
-  },
-  gridItemEmpty: {
-    flex: 1,
-    backgroundColor: 'transparent',
-  },
-  itemText: {
-    color: theme.colors.textPrimary,
-    fontSize: 16,
-  },
-  itemTextSelected: {
-    color: theme.colors.orderItemActiveText,
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  productItem: {
     backgroundColor: theme.colors.surfaceLight,
-    padding: 8,
-  },
-  productName: {
-    color: theme.colors.textPrimary,
-    fontSize: 16,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  productPrice: {
-    color: theme.colors.textSecondary,
-    fontSize: 14,
-  },
-  doneButton: {
-    height: 64,
-    backgroundColor: theme.colors.btnGreen,
-    justifyContent: 'center',
-    alignItems: 'center',
     borderRadius: theme.borderRadius,
-    margin: 8,
+    paddingHorizontal: 4,
   },
-  doneText: {
-    color: theme.colors.textDark,
-    fontSize: 16,
+  modActive: {
+    backgroundColor: '#fff',
+  },
+  modText: {
+    color: theme.colors.textPrimary,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  modTextActive: {
+    color: '#000',
     fontWeight: 'bold',
   },
+  emptyCell: { flex: 1 },
 });

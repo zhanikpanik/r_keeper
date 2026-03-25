@@ -3,31 +3,28 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../theme/colors';
 import { useOrderStore } from '../store/orderStore';
-import { menuProducts, menuCategories, getProductColor } from '../mocks/menuData';
-import { Product } from '../types';
+import { menuCategories } from '../mocks/menuData';
 
-const COLS = 3;
-const ROWS = 6;
+const COLS = 2;
 const GAP = 4;
-const TOTAL_CELLS = COLS * ROWS; // 18
 
-export const ProductGrid: React.FC = () => {
-  const { activeCategoryId, addProduct } = useOrderStore();
-  const products = menuProducts[activeCategoryId] || [];
-  const category = menuCategories.find(c => c.id === activeCategoryId);
-  const categoryName = category?.name || '';
+export const CategoryMenu: React.FC = () => {
+  const { activeCategoryId, setActiveCategory } = useOrderStore();
 
-  // Build cells
-  type Cell = { kind: 'product'; product: Product; colorIdx: number } | { kind: 'pageDown' } | { kind: 'empty' };
-  const cells: Cell[] = products.map((p, i) => ({ kind: 'product' as const, product: p, colorIdx: i }));
+  // Build cells: categories + pagination arrow + fill to complete grid
+  const totalRows = Math.max(6, Math.ceil((menuCategories.length + 1) / COLS)); // +1 for pagination
+  const totalCells = totalRows * COLS;
 
-  // If products fill to the last row, put pageDown in the very last cell
-  while (cells.length < TOTAL_CELLS - 1) cells.push({ kind: 'empty' });
+  type Cell = { kind: 'category'; id: string; name: string } | { kind: 'pageDown' } | { kind: 'empty' };
+  const cells: Cell[] = menuCategories.map(c => ({ kind: 'category' as const, id: c.id, name: c.name }));
+  
+  // Fill remaining with empties, last cell = pageDown if we have many categories
+  while (cells.length < totalCells - 1) cells.push({ kind: 'empty' });
   cells.push({ kind: 'pageDown' });
 
   // Build rows
   const rows: Cell[][] = [];
-  for (let r = 0; r < ROWS; r++) {
+  for (let r = 0; r < totalRows; r++) {
     rows.push(cells.slice(r * COLS, r * COLS + COLS));
   }
 
@@ -35,23 +32,33 @@ export const ProductGrid: React.FC = () => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerText}>{categoryName}</Text>
+        <Text style={styles.headerText}>Меню</Text>
       </View>
 
       {/* Grid */}
       <View style={styles.grid}>
         {rows.map((row, ri) => (
-          <View key={ri} style={[styles.row, ri < ROWS - 1 && { marginBottom: GAP }]}>
+          <View key={ri} style={[styles.row, ri < rows.length - 1 && { marginBottom: GAP }]}>
             {row.map((cell, ci) => (
               <View key={ci} style={[styles.cellWrap, ci < COLS - 1 && { marginRight: GAP }]}>
-                {cell.kind === 'product' && (
+                {cell.kind === 'category' && (
                   <TouchableOpacity
-                    style={[styles.productBtn, { backgroundColor: getProductColor(cell.colorIdx) }]}
-                    onPress={() => addProduct(cell.product)}
+                    style={[
+                      styles.categoryBtn,
+                      activeCategoryId === cell.id && styles.categoryActive,
+                    ]}
+                    onPress={() => setActiveCategory(cell.id)}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.productName} numberOfLines={2}>{cell.product.name}</Text>
-                    <Text style={styles.productPrice}>{cell.product.price} ₽</Text>
+                    <Text
+                      style={[
+                        styles.categoryText,
+                        activeCategoryId === cell.id && styles.categoryTextActive,
+                      ]}
+                      numberOfLines={2}
+                    >
+                      {cell.name}
+                    </Text>
                   </TouchableOpacity>
                 )}
                 {cell.kind === 'pageDown' && (
@@ -84,24 +91,25 @@ const styles = StyleSheet.create({
   row: { flex: 1, flexDirection: 'row' },
   cellWrap: { flex: 1 },
 
-  productBtn: {
+  categoryBtn: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: theme.colors.surfaceLight,
     borderRadius: theme.borderRadius,
-    paddingHorizontal: 6,
-    paddingVertical: 4,
+    paddingHorizontal: 4,
   },
-  productName: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: 'bold',
+  categoryActive: {
+    backgroundColor: theme.colors.actionMenuPurple,
+  },
+  categoryText: {
+    color: theme.colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '500',
     textAlign: 'center',
-    marginBottom: 2,
   },
-  productPrice: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 12,
+  categoryTextActive: {
+    fontWeight: 'bold',
   },
   pageBtn: {
     flex: 1,

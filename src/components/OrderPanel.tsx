@@ -103,11 +103,7 @@ export const OrderPanel: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Payment Footer */}
-      <TouchableOpacity style={styles.paymentFooter} onPress={handleCheckout}>
-        <Text style={styles.paymentText}>Оплата</Text>
-        <Text style={styles.paymentTotal}>{total} ₽</Text>
-      </TouchableOpacity>
+      {/* Payment footer is now in PosScreen */}
     </View>
   );
 };
