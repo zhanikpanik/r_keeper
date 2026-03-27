@@ -9,6 +9,7 @@ export interface Product {
   categoryId: string;
   name: string;
   price: number;
+  hasModifiers?: boolean;
 }
 
 export interface Modifier {
@@ -23,14 +24,34 @@ export interface Guest {
 }
 
 export interface OrderItem {
-  id: string; // Unique ID for this specific line item
+  id: string;
   product: Product;
   quantity: number;
-  guestId: string | null; // null means it belongs to the general "Заказ"
+  guestId: string | null; // null = belongs to general "Заказ" section
   modifiers: Modifier[];
 }
 
 export type OrderStatus = 'active' | 'alert' | 'inactive';
+
+export interface Order {
+  id: string;
+  number: string;
+  status: OrderStatus;
+  waiter: string;
+  openedAt: string;
+  zone: string;
+  type: string;
+  totalAmount: number;
+  tableNumber: string;
+  tableId: string;       // links to FloorTable.id
+  guestCount: number;
+  guests: Guest[];
+  items: OrderItem[];
+  isQuickCheck?: boolean; // "Быстрый чек" — no table
+  hasNote?: boolean;
+  hasAlert?: boolean;
+  hasEdit?: boolean;
+}
 
 export type TableStatus = 'free' | 'occupied' | 'reserved';
 
@@ -43,20 +64,6 @@ export interface Table {
   currentOrderId?: string;
   amount?: number;
   timeSeated?: string;
-}
-
-export interface Order {
-  id: string;
-  number: string;
-  status: OrderStatus;
-  waiter: string;
-  openedAt: string;
-  zone: string;
-  type: string;
-  totalAmount: number;
-  hasNote?: boolean;
-  hasAlert?: boolean;
-  hasEdit?: boolean;
 }
 
 export type ActiveAction = 'modifiers' | 'quantity' | 'guest' | 'course' | 'combo' | 'move' | 'delete' | null;

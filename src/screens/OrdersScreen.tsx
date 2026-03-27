@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, SafeAreaView, StatusBar, useWindowDimensions } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, SafeAreaView, StatusBar } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { theme } from '../theme/colors';
 import { OrderCard } from '../components/OrderCard';
-import { TableCard } from '../components/TableCard';
+import { FloorPlan } from '../components/FloorPlan';
 import { BottomTabBar } from '../components/BottomTabBar';
-import { mockOrders, mockTables } from '../mocks/mockData';
 import { useOrderStore } from '../store/orderStore';
+import { FloorTable } from '../mocks/floorPlan';
+import { Order } from '../types';
 
 const COLUMNS = 4;
 const ROWS = 5;
@@ -16,44 +17,63 @@ const CELLS_PER_PAGE = COLUMNS * ROWS; // 20
 const ORDER_SLOTS = CELLS_PER_PAGE - 1; // 19 (cell 0 = action buttons)
 
 export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const { width: ww, height: wh } = useWindowDimensions();
   const [activeTab, setActiveTab] = useState<'orders' | 'tables'>('orders');
   const [page, setPage] = useState(0);
-  const clearOrder = useOrderStore((s) => s.clearOrder);
+  const orders = useOrderStore((s) => s.orders);
+  const createOrderForTable = useOrderStore((s) => s.createOrderForTable);
+  const createQuickCheck = useOrderStore((s) => s.createQuickCheck);
+  const openOrder = useOrderStore((s) => s.openOrder);
   const isOrders = activeTab === 'orders';
 
-  // ── Data & pagination ──
-  const allItems = isOrders ? mockOrders : mockTables;
-  const totalItems = allItems.length;
+  // ── Pagination (orders only) ──
+  const totalItems = orders.length;
   const needsPagination = totalItems > ORDER_SLOTS;
-  const slotsThisView = needsPagination ? ORDER_SLOTS - 1 : ORDER_SLOTS; // 18 if paginated, 19 if not
+  const slotsThisView = needsPagination ? ORDER_SLOTS - 1 : ORDER_SLOTS;
   const totalPages = needsPagination ? Math.ceil(totalItems / slotsThisView) : 1;
-  const pageItems = allItems.slice(page * slotsThisView, page * slotsThisView + slotsThisView);
+  const pageItems = orders.slice(page * slotsThisView, page * slotsThisView + slotsThisView);
 
-  const handleNewOrder = () => { clearOrder(); navigation.navigate('Pos'); };
-  const handleQuickCheck = () => { navigation.navigate('Pos'); };
-  const handleSelect = (_id: string) => { navigation.navigate('Pos'); };
+  // ── "Новый заказ" → switch to tables tab to pick a table ──
+  const handleNewOrder = () => {
+    setActiveTab('tables');
+  };
+
+  const handleQuickCheck = () => {
+    createQuickCheck();
+    navigation.navigate('Pos');
+  };
+
+  const handleSelectOrder = (orderId: string) => {
+    openOrder(orderId);
+    navigation.navigate('Pos');
+  };
+
+  // ── Table tap from floor plan ──
+  const handleTablePress = (table: FloorTable, existingOrder?: Order) => {
+    if (existingOrder) {
+      // Table has an active order → open it
+      openOrder(existingOrder.id);
+    } else {
+      // Free table → create new order
+      createOrderForTable(table.id, table.number, table.zone);
+    }
+    navigation.navigate('Pos');
+  };
+
   const handlePageUp = () => setPage((p) => Math.max(0, p - 1));
   const handlePageDown = () => setPage((p) => Math.min(totalPages - 1, p + 1));
 
-  // ── Build flat cell list (always exactly 20 cells) ──
+  // ── Build flat cell list for orders grid ──
   type Cell =
     | { kind: 'actions' }
-    | { kind: 'order'; data: typeof mockOrders[0] }
-    | { kind: 'table'; data: typeof mockTables[0] }
+    | { kind: 'order'; data: Order }
     | { kind: 'pagination' }
     | { kind: 'empty' };
 
-  const cells: Cell[] = [];
-  if (isOrders) cells.push({ kind: 'actions' });
-  pageItems.forEach((item) => {
-    if (isOrders) cells.push({ kind: 'order', data: item as typeof mockOrders[0] });
-    else cells.push({ kind: 'table', data: item as typeof mockTables[0] });
-  });
+  const cells: Cell[] = [{ kind: 'actions' }];
+  pageItems.forEach((item) => cells.push({ kind: 'order', data: item }));
   if (needsPagination) cells.push({ kind: 'pagination' });
   while (cells.length < CELLS_PER_PAGE) cells.push({ kind: 'empty' });
 
-  // ── Build rows ──
   const rows: Cell[][] = [];
   for (let r = 0; r < ROWS; r++) {
     rows.push(cells.slice(r * COLUMNS, r * COLUMNS + COLUMNS));
@@ -64,9 +84,8 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       <StatusBar hidden />
       <View style={styles.root}>
 
-        {/* ═══ HEADER ROW (flex: 0.5 relative to card rows) ═══ */}
+        {/* ═══ HEADER ROW ═══ */}
         <View style={[styles.headerRow, { marginHorizontal: PADDING, marginBottom: GAP }]}>
-          {/* Col 1–2: Waiter filter */}
           <View style={[styles.filterBox, { flex: 2, marginRight: GAP }]}>
             <TouchableOpacity style={styles.filterArrow}>
               <Feather name="chevron-left" size={22} color={theme.colors.tabActive} />
@@ -79,12 +98,10 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             </TouchableOpacity>
           </View>
 
-          {/* Col 3: Toggle */}
           <TouchableOpacity style={[styles.toggleBtn, { flex: 1, marginRight: GAP }]}>
             <Text style={styles.toggleLabel}>{isOrders ? 'По официантам' : 'По залам'}</Text>
           </TouchableOpacity>
 
-          {/* Col 4: Bell + Search */}
           <View style={[styles.headerRight, { flex: 1 }]}>
             <TouchableOpacity style={[styles.bellBtn, { marginRight: GAP }]}>
               <MaterialCommunityIcons name="bell" size={20} color="#FF9800" />
@@ -96,71 +113,67 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </View>
         </View>
 
-        {/* ═══ GRID — 5 rows, flex-based so it always fills exactly ═══ */}
-        <View style={[styles.gridArea, { marginHorizontal: PADDING }]}>
-          {rows.map((row, rowIdx) => (
-            <View
-              key={rowIdx}
-              style={[
-                styles.gridRow,
-                rowIdx < ROWS - 1 ? { marginBottom: GAP } : undefined,
-              ]}
-            >
-              {row.map((cell, colIdx) => (
-                <View
-                  key={colIdx}
-                  style={[
-                    styles.cellWrap,
-                    colIdx < COLUMNS - 1 ? { marginRight: GAP } : undefined,
-                  ]}
-                >
-                  {cell.kind === 'actions' && (
-                    <View style={styles.actionsCell}>
-                      <TouchableOpacity style={[styles.actionHalf, { marginRight: GAP }]} onPress={handleNewOrder}>
-                        <Feather name="plus" size={24} color="#fff" />
-                        <Text style={styles.actionLabel}>Новый{'\n'}заказ</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.actionHalf} onPress={handleQuickCheck}>
-                        <Feather name="plus" size={24} color="#fff" />
-                        <Text style={styles.actionLabel}>Быстрый{'\n'}чек</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
+        {/* ═══ CONTENT ═══ */}
+        {isOrders ? (
+          /* Orders grid */
+          <View style={[styles.gridArea, { marginHorizontal: PADDING }]}>
+            {rows.map((row, rowIdx) => (
+              <View
+                key={rowIdx}
+                style={[styles.gridRow, rowIdx < ROWS - 1 ? { marginBottom: GAP } : undefined]}
+              >
+                {row.map((cell, colIdx) => (
+                  <View
+                    key={colIdx}
+                    style={[styles.cellWrap, colIdx < COLUMNS - 1 ? { marginRight: GAP } : undefined]}
+                  >
+                    {cell.kind === 'actions' && (
+                      <View style={styles.actionsCell}>
+                        <TouchableOpacity style={[styles.actionHalf, { marginRight: GAP }]} onPress={handleNewOrder}>
+                          <Feather name="plus" size={24} color="#fff" />
+                          <Text style={styles.actionLabel}>Новый{'\n'}заказ</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.actionHalf} onPress={handleQuickCheck}>
+                          <Feather name="plus" size={24} color="#fff" />
+                          <Text style={styles.actionLabel}>Быстрый{'\n'}чек</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
 
-                  {cell.kind === 'order' && (
-                    <OrderCard order={cell.data} onPress={() => handleSelect(cell.data.id)} />
-                  )}
+                    {cell.kind === 'order' && (
+                      <OrderCard order={cell.data} onPress={() => handleSelectOrder(cell.data.id)} />
+                    )}
 
-                  {cell.kind === 'table' && (
-                    <TableCard table={cell.data} onPress={() => handleSelect(cell.data.id)} />
-                  )}
-
-                  {cell.kind === 'pagination' && (
-                    <View style={styles.paginationCell}>
-                      <TouchableOpacity
-                        style={[styles.pageHalf, page === 0 && styles.pageDisabled]}
-                        onPress={handlePageUp}
-                        disabled={page === 0}
-                      >
-                        <Feather name="chevron-up" size={28} color={page === 0 ? '#999' : theme.colors.tabActive} />
-                      </TouchableOpacity>
-                      <View style={styles.pageDivider} />
-                      <TouchableOpacity
-                        style={[styles.pageHalf, page >= totalPages - 1 && styles.pageDisabled]}
-                        onPress={handlePageDown}
-                        disabled={page >= totalPages - 1}
-                      >
-                        <Feather name="chevron-down" size={28} color={page >= totalPages - 1 ? '#999' : theme.colors.tabActive} />
-                      </TouchableOpacity>
-                    </View>
-                  )}
-
-                  {/* empty = nothing rendered, just takes space */}
-                </View>
-              ))}
-            </View>
-          ))}
-        </View>
+                    {cell.kind === 'pagination' && (
+                      <View style={styles.paginationCell}>
+                        <TouchableOpacity
+                          style={[styles.pageHalf, page === 0 && styles.pageDisabled]}
+                          onPress={handlePageUp}
+                          disabled={page === 0}
+                        >
+                          <Feather name="chevron-up" size={28} color={page === 0 ? '#999' : theme.colors.tabActive} />
+                        </TouchableOpacity>
+                        <View style={styles.pageDivider} />
+                        <TouchableOpacity
+                          style={[styles.pageHalf, page >= totalPages - 1 && styles.pageDisabled]}
+                          onPress={handlePageDown}
+                          disabled={page >= totalPages - 1}
+                        >
+                          <Feather name="chevron-down" size={28} color={page >= totalPages - 1 ? '#999' : theme.colors.tabActive} />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </View>
+            ))}
+          </View>
+        ) : (
+          /* Floor plan */
+          <View style={[styles.floorPlanArea, { marginHorizontal: PADDING }]}>
+            <FloorPlan onTablePress={handleTablePress} />
+          </View>
+        )}
 
         {/* ═══ BOTTOM TAB BAR ═══ */}
         <BottomTabBar activeTab={activeTab} onTabChange={setActiveTab} />
@@ -173,7 +186,6 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: theme.colors.background },
   root: { flex: 1 },
 
-  /* ── Header ── */
   headerRow: {
     height: 44,
     flexDirection: 'row',
@@ -222,22 +234,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  /* ── Grid ── */
-  gridArea: {
+  gridArea: { flex: 1, marginBottom: GAP },
+  gridRow: { flex: 1, flexDirection: 'row' },
+  cellWrap: { flex: 1, borderRadius: theme.borderRadius, overflow: 'hidden' },
+
+  floorPlanArea: {
     flex: 1,
     marginBottom: GAP,
-  },
-  gridRow: {
-    flex: 1,         // each row stretches equally → 5 equal rows
-    flexDirection: 'row',
-  },
-  cellWrap: {
-    flex: 1,         // each cell stretches equally → 4 equal columns
     borderRadius: theme.borderRadius,
     overflow: 'hidden',
   },
 
-  /* ── Action cell ── */
   actionsCell: { flex: 1, flexDirection: 'row' },
   actionHalf: {
     flex: 1,
@@ -249,7 +256,6 @@ const styles = StyleSheet.create({
   },
   actionLabel: { color: '#fff', fontSize: 13, fontWeight: '600', textAlign: 'center' },
 
-  /* ── Pagination cell ── */
   paginationCell: {
     flex: 1,
     flexDirection: 'row',

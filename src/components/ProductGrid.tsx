@@ -21,9 +21,14 @@ export const ProductGrid: React.FC = () => {
   type Cell = { kind: 'product'; product: Product; colorIdx: number } | { kind: 'pageDown' } | { kind: 'empty' };
   const cells: Cell[] = products.map((p, i) => ({ kind: 'product' as const, product: p, colorIdx: i }));
 
-  // If products fill to the last row, put pageDown in the very last cell
-  while (cells.length < TOTAL_CELLS - 1) cells.push({ kind: 'empty' });
-  cells.push({ kind: 'pageDown' });
+  const needsPagination = products.length > TOTAL_CELLS;
+  // Fill remaining with empties (or pagination arrow if overflow)
+  if (needsPagination) {
+    while (cells.length < TOTAL_CELLS - 1) cells.push({ kind: 'empty' });
+    cells.push({ kind: 'pageDown' });
+  } else {
+    while (cells.length < TOTAL_CELLS) cells.push({ kind: 'empty' });
+  }
 
   // Build rows
   const rows: Cell[][] = [];

@@ -6,54 +6,85 @@ import { useOrderStore } from '../store/orderStore';
 import { modifierGroups } from '../mocks/menuData';
 import { Modifier } from '../types';
 import { QuantityNumpad } from './QuantityNumpad';
+import { GuestPicker } from './GuestPicker';
 
 const COLS = 3;
 const ROWS = 5;
 const GAP = 4;
-const TOTAL_CELLS = COLS * ROWS; // 15
+const TOTAL_CELLS = COLS * ROWS;
 
 export const ModifierGrid: React.FC = () => {
-  const { items, selectedItemId, activeAction, toggleModifier } = useOrderStore();
+  const { items, selectedItemId, activeAction, activeModifierGroupId, setActiveModifierGroup, toggleModifier } = useOrderStore();
   const selectedItem = items.find(i => i.id === selectedItemId);
 
-  // Quantity mode → show numpad
+  // Quantity mode → numpad
   if (activeAction === 'quantity' && selectedItem) {
     return <QuantityNumpad />;
   }
 
-  // Modifier mode → show modifier grid
-  const isModifiers = activeAction === 'modifiers' && !!selectedItem;
+  // Guest mode → guest picker
+  if (activeAction === 'guest' && selectedItem) {
+    return <GuestPicker />;
+  }
 
-  // Use first modifier group for now (TODO: allow switching groups with < arrow)
-  const activeGroup = modifierGroups[0];
+  // Modifier mode
+  const isModifiers = activeAction === 'modifiers' && !!selectedItem;
+  const activeGroup = modifierGroups.find(g => g.id === activeModifierGroupId) || modifierGroups[0];
+  const currentGroupIdx = modifierGroups.findIndex(g => g.id === activeGroup.id);
   const modifiers = isModifiers ? activeGroup.modifiers : [];
   const headerTitle = isModifiers ? activeGroup.name : '';
-
   const itemModifierIds = selectedItem?.modifiers.map(m => m.id) || [];
+
+  const handlePrevGroup = () => {
+    if (currentGroupIdx > 0) {
+      setActiveModifierGroup(modifierGroups[currentGroupIdx - 1].id);
+    }
+  };
+
+  const handleNextGroup = () => {
+    if (currentGroupIdx < modifierGroups.length - 1) {
+      setActiveModifierGroup(modifierGroups[currentGroupIdx + 1].id);
+    }
+  };
 
   // Build cells
   type Cell = { kind: 'modifier'; mod: Modifier } | { kind: 'empty' };
   const cells: Cell[] = modifiers.map(m => ({ kind: 'modifier' as const, mod: m }));
   while (cells.length < TOTAL_CELLS) cells.push({ kind: 'empty' });
 
-  // Build rows
   const rows: Cell[][] = [];
   for (let r = 0; r < ROWS; r++) {
     rows.push(cells.slice(r * COLS, r * COLS + COLS));
   }
 
+  // No modifier panel needed — show empty state
+  if (!isModifiers) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.headerBack} />
+          <Text style={styles.headerText}>{selectedItem?.product.name || ''}</Text>
+          <View style={styles.headerBack} />
+        </View>
+        <View style={[styles.grid, { justifyContent: 'center', alignItems: 'center' }]} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      {/* Header with back arrow + title */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.headerBack}>
-          <Feather name="chevron-left" size={22} color={theme.colors.textSecondary} />
+        <TouchableOpacity style={styles.headerBack} onPress={handlePrevGroup}>
+          <Feather name="chevron-left" size={22} color={currentGroupIdx > 0 ? theme.colors.textPrimary : theme.colors.textSecondary} />
         </TouchableOpacity>
         <Text style={styles.headerText}>{headerTitle}</Text>
-        <View style={styles.headerBack} />
+        <TouchableOpacity style={styles.headerBack} onPress={handleNextGroup}>
+          {currentGroupIdx < modifierGroups.length - 1 && (
+            <Feather name="chevron-right" size={22} color={theme.colors.textPrimary} />
+          )}
+        </TouchableOpacity>
       </View>
 
-      {/* Grid */}
       <View style={styles.grid}>
         {rows.map((row, ri) => (
           <View key={ri} style={[styles.row, ri < ROWS - 1 && { marginBottom: GAP }]}>
@@ -61,18 +92,12 @@ export const ModifierGrid: React.FC = () => {
               <View key={ci} style={[styles.cellWrap, ci < COLS - 1 && { marginRight: GAP }]}>
                 {cell.kind === 'modifier' ? (
                   <TouchableOpacity
-                    style={[
-                      styles.modBtn,
-                      itemModifierIds.includes(cell.mod.id) && styles.modActive,
-                    ]}
+                    style={[styles.modBtn, itemModifierIds.includes(cell.mod.id) && styles.modActive]}
                     onPress={() => toggleModifier(cell.mod)}
                     activeOpacity={0.7}
                   >
                     <Text
-                      style={[
-                        styles.modText,
-                        itemModifierIds.includes(cell.mod.id) && styles.modTextActive,
-                      ]}
+                      style={[styles.modText, itemModifierIds.includes(cell.mod.id) && styles.modTextActive]}
                       numberOfLines={2}
                     >
                       {cell.mod.name}

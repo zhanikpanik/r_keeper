@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, StatusBar } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, StatusBar, Alert } from 'react-native';
 import { theme } from '../theme/colors';
 import { PosHeader } from '../components/PosHeader';
 import { OrderPanel } from '../components/OrderPanel';
@@ -7,19 +7,53 @@ import { CategoryMenu } from '../components/CategoryMenu';
 import { ProductGrid } from '../components/ProductGrid';
 import { ItemActionsMenu } from '../components/ItemActionsMenu';
 import { ModifierGrid } from '../components/ModifierGrid';
+import { SearchMode } from '../components/SearchMode';
 import { useOrderStore } from '../store/orderStore';
 
 const GAP = 4;
 const PADDING = 8;
 
 export const PosScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
-  const { selectedItemId, items, getTotal } = useOrderStore();
+  const { selectedItemId, items, getTotal, saveCurrentOrder, selectItem, tableNumber, guests, isQuickCheck } = useOrderStore();
   const selectedItem = items.find(i => i.id === selectedItemId);
   const isItemSelected = !!selectedItem;
   const total = getTotal();
+  const [searchMode, setSearchMode] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const handleBack = () => {
+    if (items.length > 0) {
+      Alert.alert(
+        'Несохранённые изменения',
+        'Сохранить заказ перед выходом?',
+        [
+          { text: 'Не сохранять', style: 'destructive', onPress: () => navigation?.navigate('Orders') },
+          { text: 'Отмена', style: 'cancel' },
+          { text: 'Сохранить', onPress: () => { saveCurrentOrder(); navigation?.navigate('Orders'); } },
+        ]
+      );
+    } else {
+      navigation?.navigate('Orders');
+    }
+  };
+
+  const handleSave = () => {
+    if (items.length === 0) {
+      Alert.alert('Пустой заказ', 'Добавьте хотя бы одно блюдо', [{ text: 'OK' }]);
+      return;
+    }
+    saveCurrentOrder();
     navigation?.navigate('Orders');
+  };
+
+  const handleSearchOpen = () => {
+    setSearchMode(true);
+    setSearchQuery('');
+  };
+
+  const handleSearchClose = () => {
+    setSearchMode(false);
+    setSearchQuery('');
   };
 
   return (
@@ -27,33 +61,54 @@ export const PosScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
       <StatusBar hidden />
       <View style={styles.root}>
         {/* ═══ HEADER ═══ */}
-        <PosHeader onBack={handleBack} />
+        <PosHeader
+          onBack={handleBack}
+          searchMode={searchMode}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchOpen={handleSearchOpen}
+          onSearchClose={handleSearchClose}
+          tableNumber={tableNumber}
+          guestCount={guests.length}
+          isQuickCheck={isQuickCheck}
+        />
 
-        {/* ═══ MAIN CONTENT (3 columns) ═══ */}
+        {/* ═══ MAIN CONTENT ═══ */}
         <View style={styles.mainRow}>
-          {/* ── Left: Order Panel ── */}
+          {/* ── Left: Order Panel (always visible) ── */}
           <View style={styles.leftCol}>
             <OrderPanel />
           </View>
 
           <View style={{ width: GAP }} />
 
-          {/* ── Middle: Categories or Actions ── */}
-          <View style={styles.midCol}>
-            {isItemSelected ? <ItemActionsMenu /> : <CategoryMenu />}
-          </View>
+          {searchMode ? (
+            /* Search mode: products + keyboard fill the right area */
+            <View style={styles.searchRightCol}>
+              <SearchMode
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+              />
+            </View>
+          ) : (
+            <>
+              {/* ── Middle: Categories or Actions ── */}
+              <View style={styles.midCol}>
+                {isItemSelected ? <ItemActionsMenu /> : <CategoryMenu />}
+              </View>
 
-          <View style={{ width: GAP }} />
+              <View style={{ width: GAP }} />
 
-          {/* ── Right: Products or Modifiers ── */}
-          <View style={styles.rightCol}>
-            {isItemSelected ? <ModifierGrid /> : <ProductGrid />}
-          </View>
+              {/* ── Right: Products or Modifiers ── */}
+              <View style={styles.rightCol}>
+                {isItemSelected ? <ModifierGrid /> : <ProductGrid />}
+              </View>
+            </>
+          )}
         </View>
 
-        {/* ═══ FOOTER (spans full width, changes per mode) ═══ */}
+        {/* ═══ FOOTER ═══ */}
         <View style={[styles.footerRow, { paddingHorizontal: PADDING }]}>
-          {/* Payment button — always in left col area */}
           <TouchableOpacity style={styles.paymentBtn}>
             <Text style={styles.paymentLabel}>Оплата</Text>
             <Text style={styles.paymentAmount}>{formatAmount(total)} ₽</Text>
@@ -62,18 +117,16 @@ export const PosScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
           <View style={{ width: GAP }} />
 
           {isItemSelected ? (
-            /* Mode: item selected → Отмена + Готово */
             <>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => useOrderStore.getState().selectItem(null)}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => selectItem(null)}>
                 <Text style={styles.cancelText}>Отмена</Text>
               </TouchableOpacity>
               <View style={{ width: GAP }} />
-              <TouchableOpacity style={styles.doneBtn} onPress={() => useOrderStore.getState().selectItem(null)}>
+              <TouchableOpacity style={styles.doneBtn} onPress={() => selectItem(null)}>
                 <Text style={styles.doneText}>Готово</Text>
               </TouchableOpacity>
             </>
           ) : (
-            /* Mode: menu browse → Скидки + Ввести код + Сохранить заказ */
             <>
               <TouchableOpacity style={styles.secondaryBtn}>
                 <Text style={styles.secondaryText}>Скидки{'\n'}и наценки</Text>
@@ -83,7 +136,7 @@ export const PosScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
                 <Text style={styles.secondaryText}>Ввести код</Text>
               </TouchableOpacity>
               <View style={{ width: GAP }} />
-              <TouchableOpacity style={styles.saveBtn} onPress={handleBack}>
+              <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
                 <Text style={styles.saveText}>Сохранить заказ</Text>
               </TouchableOpacity>
             </>
@@ -100,7 +153,6 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: theme.colors.background },
   root: { flex: 1 },
 
-  /* ── Main 3-column area ── */
   mainRow: {
     flex: 1,
     flexDirection: 'row',
@@ -128,8 +180,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.divider,
   },
+  searchRightCol: {
+    flex: 0.65,
+  },
 
-  /* ── Footer ── */
   footerRow: {
     height: 56,
     flexDirection: 'row',

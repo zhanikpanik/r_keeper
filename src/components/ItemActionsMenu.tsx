@@ -18,21 +18,19 @@ const ACTIONS: ActionDef[] = [
   { action: 'combo',     label: 'Комбо' },
   { action: 'move',      label: 'Перенести' },
   { action: 'delete',    label: 'Удалить' },
-  null, // empty
-  null, // empty
-  null, // empty
+  null,
+  null,
+  null,
 ];
 
 export const ItemActionsMenu: React.FC = () => {
-  const { items, selectedItemId, activeAction, setActiveAction, removeProduct } = useOrderStore();
+  const { items, selectedItemId, activeAction, setActiveAction, removeProduct, selectItem } = useOrderStore();
   const selectedItem = items.find(i => i.id === selectedItemId);
   if (!selectedItem) return null;
 
-  // Pad to fill grid
   const cells = [...ACTIONS];
   while (cells.length < COLS * ROWS) cells.push(null);
 
-  // Build rows
   const rows: (ActionDef)[][] = [];
   for (let r = 0; r < ROWS; r++) {
     rows.push(cells.slice(r * COLS, r * COLS + COLS));
@@ -40,19 +38,21 @@ export const ItemActionsMenu: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      {/* Header — selected product name */}
       <View style={styles.header}>
         <Text style={styles.headerText} numberOfLines={1}>{selectedItem.product.name}</Text>
       </View>
 
-      {/* Actions grid */}
       <View style={styles.grid}>
         {rows.map((row, ri) => (
           <View key={ri} style={[styles.row, ri < ROWS - 1 && { marginBottom: GAP }]}>
             {row.map((cell, ci) => {
               const key = `${ri}-${ci}`;
               if (!cell) {
-                return <View key={key} style={[styles.cellWrap, ci < COLS - 1 && { marginRight: GAP }]}><View style={styles.emptyCell} /></View>;
+                return (
+                  <View key={key} style={[styles.cellWrap, ci < COLS - 1 && { marginRight: GAP }]}>
+                    <View style={styles.emptyCell} />
+                  </View>
+                );
               }
 
               const isActive = cell.action !== 'delete' && activeAction === cell.action;
@@ -69,10 +69,7 @@ export const ItemActionsMenu: React.FC = () => {
               return (
                 <View key={key} style={[styles.cellWrap, ci < COLS - 1 && { marginRight: GAP }]}>
                   <TouchableOpacity
-                    style={[
-                      styles.actionBtn,
-                      isActive && styles.actionActive,
-                    ]}
+                    style={[styles.actionBtn, isActive && styles.actionActive]}
                     onPress={handlePress}
                     activeOpacity={0.7}
                   >

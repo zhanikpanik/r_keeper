@@ -1,43 +1,89 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { theme } from '../theme/colors';
 
 interface Props {
   onBack: () => void;
+  searchMode: boolean;
+  searchQuery: string;
+  onSearchChange: (q: string) => void;
+  onSearchOpen: () => void;
+  onSearchClose: () => void;
+  tableNumber: string;
+  guestCount: number;
+  isQuickCheck?: boolean;
 }
 
-export const PosHeader: React.FC<Props> = ({ onBack }) => {
+export const PosHeader: React.FC<Props> = ({
+  onBack, searchMode, searchQuery, onSearchChange, onSearchOpen, onSearchClose,
+  tableNumber, guestCount, isQuickCheck,
+}) => {
+  if (searchMode) {
+    return (
+      <View style={styles.container}>
+        <TouchableOpacity style={styles.backButton} onPress={onSearchClose}>
+          <Text style={styles.backText}>Назад</Text>
+        </TouchableOpacity>
+
+        <View style={styles.searchContext}>
+          <Text style={styles.contextTitle}>Редактировать заказ</Text>
+        </View>
+
+        <View style={styles.searchInputWrap}>
+          <TextInput
+            style={styles.searchInput}
+            value={searchQuery}
+            onChangeText={onSearchChange}
+            placeholder=""
+            placeholderTextColor={theme.colors.textSecondary}
+            autoFocus
+          />
+        </View>
+
+        <TouchableOpacity style={styles.clearBtn} onPress={() => onSearchChange('')}>
+          <Text style={styles.clearText}>Очистить</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.iconButton} onPress={onSearchClose}>
+          <Feather name="x" size={22} color={theme.colors.textPrimary} />
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      {/* Left Back Button */}
       <TouchableOpacity style={styles.backButton} onPress={onBack}>
         <Text style={styles.backText}>Назад</Text>
       </TouchableOpacity>
 
-      {/* Middle Context */}
       <View style={styles.middleContext}>
         <View style={styles.contextTopRow}>
           <Text style={styles.contextTitle}>Редактировать заказ</Text>
-          <Text style={styles.contextTime}>12:40</Text>
+          <Text style={styles.contextTime}>
+            {new Date().getHours().toString().padStart(2, '0')}:{new Date().getMinutes().toString().padStart(2, '0')}
+          </Text>
         </View>
         <Text style={styles.contextDetails}>
-          Стол: 4   Гостей: 3   Основной   Общий   Константинопольский
+          {isQuickCheck
+            ? `Быстрый чек   Гостей: ${guestCount}`
+            : `Стол: ${tableNumber || '—'}   Гостей: ${guestCount}   Основной   Общий`
+          }
         </Text>
       </View>
 
-      {/* Right Actions */}
       <View style={styles.rightActions}>
         <TouchableOpacity style={styles.actionButton}>
           <Text style={styles.actionText}>По гостям</Text>
         </TouchableOpacity>
-        
+
         <TouchableOpacity style={styles.iconButton}>
           <MaterialCommunityIcons name="bell" size={20} color={theme.colors.textPrimary} />
           <Text style={styles.badgeText}>2</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.iconButton}>
+
+        <TouchableOpacity style={styles.iconButton} onPress={onSearchOpen}>
           <Feather name="search" size={20} color={theme.colors.textPrimary} />
         </TouchableOpacity>
       </View>
@@ -55,6 +101,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.divider,
+    gap: 8,
   },
   backButton: {
     height: 44,
@@ -71,7 +118,6 @@ const styles = StyleSheet.create({
   },
   middleContext: {
     flex: 1,
-    marginHorizontal: 16,
     backgroundColor: theme.colors.surfaceLight,
     borderRadius: theme.borderRadius,
     paddingHorizontal: 16,
@@ -129,5 +175,39 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
     fontSize: 10,
     fontWeight: 'bold',
+  },
+  // Search mode
+  searchContext: {
+    backgroundColor: theme.colors.surfaceLight,
+    borderRadius: theme.borderRadius,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  searchInputWrap: {
+    flex: 1,
+    height: 44,
+    borderWidth: 1,
+    borderColor: '#00C853',
+    borderRadius: theme.borderRadius,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  searchInput: {
+    color: theme.colors.textPrimary,
+    fontSize: 16,
+    height: '100%',
+
+  },
+  clearBtn: {
+    height: 44,
+    paddingHorizontal: 16,
+    backgroundColor: theme.colors.surfaceLight,
+    borderRadius: theme.borderRadius,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  clearText: {
+    color: theme.colors.textPrimary,
+    fontSize: 14,
   },
 });

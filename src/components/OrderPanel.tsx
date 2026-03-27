@@ -1,55 +1,52 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../theme/colors';
 import { OrderItem } from './OrderItem';
 import { useOrderStore } from '../store/orderStore';
-import { OrderItem as OrderItemType } from '../types';
 
 export const OrderPanel: React.FC = () => {
-  const { items, guests, selectedItemId, addGuest, selectItem, getTotal, clearOrder } = useOrderStore();
-  
-  const total = getTotal();
+  const {
+    items, guests, selectedItemId, activeGuestId,
+    addGuest, selectItem, setActiveGuest, getTotal, getGuestTotal,
+  } = useOrderStore();
 
-  const handleCheckout = () => {
-    if (items.length === 0) return;
-    Alert.alert('Оплата', `Итого: ${total} ₽`, [
-      { text: 'Отмена', style: 'cancel' },
-      { text: 'Оплатить', onPress: () => clearOrder() },
-    ]);
-  };
+  const total = getTotal();
 
   const renderItemsForGuest = (guestId: string | null) => {
     const guestItems = items.filter(item => item.guestId === guestId);
-    if (guestItems.length === 0 && guestId !== null) return null; // Don't show empty guests unless it's the main order
+    if (guestItems.length === 0 && guestId !== null) {
+      // Still show guest header with 0 ₽ if they exist
+      const guest = guests.find(g => g.id === guestId);
+      if (!guest) return null;
+    }
 
-    const sectionTotal = guestItems.reduce((sum, item) => {
-      const modPrice = item.modifiers.reduce((mSum, m) => mSum + m.price, 0);
-      return sum + (item.product.price + modPrice) * item.quantity;
-    }, 0);
-
-    const title = guestId === null ? 'Заказ' : guests.find(g => g.id === guestId)?.name || 'Неизвестный гость';
+    const sectionTotal = getGuestTotal(guestId);
+    const title = guestId === null
+      ? 'Заказ'
+      : guests.find(g => g.id === guestId)?.name || 'Гость';
+    const isActiveGuest = activeGuestId === guestId;
 
     return (
       <View key={guestId || 'main'}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{title}</Text>
-          <Text style={styles.sectionTotal}>{sectionTotal} ₽</Text>
-        </View>
+        <TouchableOpacity
+          style={[styles.sectionHeader, isActiveGuest && styles.sectionHeaderActive]}
+          onPress={() => setActiveGuest(guestId)}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.sectionTitle, isActiveGuest && styles.sectionTitleActive]}>{title}</Text>
+          <Text style={[styles.sectionTotal, isActiveGuest && styles.sectionTotalActive]}>{sectionTotal} ₽</Text>
+        </TouchableOpacity>
 
         {guestItems.map((item) => (
           <View key={item.id}>
-            <TouchableOpacity 
+            <TouchableOpacity
               activeOpacity={1}
               onPress={() => selectItem(item.id === selectedItemId ? null : item.id)}
             >
-              <OrderItem
-                item={item}
-                isSelected={item.id === selectedItemId}
-              />
+              <OrderItem item={item} isSelected={item.id === selectedItemId} />
             </TouchableOpacity>
-            
-            {/* Show modifiers always for the item if it has them, highlight text if selected */}
+
             {item.modifiers.length > 0 && (
               <View style={[styles.modifiersContainer, item.id === selectedItemId && styles.modifiersContainerSelected]}>
                 {item.modifiers.map((mod) => (
@@ -70,7 +67,7 @@ export const OrderPanel: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      {/* Top Header - All Guests */}
+      {/* Top: Guest navigation */}
       <View style={styles.guestHeader}>
         <TouchableOpacity style={styles.navButton}>
           <Feather name="chevron-left" size={20} color={theme.colors.textPrimary} />
@@ -81,15 +78,87 @@ export const OrderPanel: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.itemList}>
-        {/* Main Order Section (guestId = null) */}
-        {renderItemsForGuest(null)}
+      {/* Order total row */}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Заказ</Text>
+        <Text style={styles.sectionTotal}>{total} ₽</Text>
+      </View>
 
-        {/* Guests Sections */}
-        {guests.map(guest => renderItemsForGuest(guest.id))}
+      {/* Items list */}
+      <ScrollView style={styles.itemList}>
+        {/* Items without a guest (general order) */}
+        {items.filter(i => i.guestId === null).length > 0 && (
+          <View>
+            {items.filter(i => i.guestId === null).map((item) => (
+              <View key={item.id}>
+                <TouchableOpacity
+                  activeOpacity={1}
+                  onPress={() => selectItem(item.id === selectedItemId ? null : item.id)}
+                >
+                  <OrderItem item={item} isSelected={item.id === selectedItemId} />
+                </TouchableOpacity>
+                {item.modifiers.length > 0 && (
+                  <View style={[styles.modifiersContainer, item.id === selectedItemId && styles.modifiersContainerSelected]}>
+                    {item.modifiers.map((mod) => (
+                      <View key={mod.id} style={styles.modifierRow}>
+                        <View style={styles.modifierLine} />
+                        <Text style={[styles.modifierText, item.id === selectedItemId && styles.modifierTextSelected]}>{mod.name}</Text>
+                        <Text style={[styles.modifierQty, item.id === selectedItemId && styles.modifierTextSelected]}>1</Text>
+                        <Text style={[styles.modifierPrice, item.id === selectedItemId && styles.modifierTextSelected]}>{mod.price} ₽</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Guest sections */}
+        {guests.map(guest => {
+          const guestItems = items.filter(i => i.guestId === guest.id);
+          const guestTotal = getGuestTotal(guest.id);
+          const isActiveGuest = activeGuestId === guest.id;
+
+          return (
+            <View key={guest.id}>
+              <TouchableOpacity
+                style={[styles.sectionHeader, isActiveGuest && styles.sectionHeaderActive]}
+                onPress={() => setActiveGuest(isActiveGuest ? null : guest.id)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.sectionTitle, isActiveGuest && styles.sectionTitleActive]}>{guest.name}</Text>
+                <Text style={[styles.sectionTotal, isActiveGuest && styles.sectionTotalActive]}>{guestTotal} ₽</Text>
+              </TouchableOpacity>
+
+              {guestItems.map((item) => (
+                <View key={item.id}>
+                  <TouchableOpacity
+                    activeOpacity={1}
+                    onPress={() => selectItem(item.id === selectedItemId ? null : item.id)}
+                  >
+                    <OrderItem item={item} isSelected={item.id === selectedItemId} />
+                  </TouchableOpacity>
+                  {item.modifiers.length > 0 && (
+                    <View style={[styles.modifiersContainer, item.id === selectedItemId && styles.modifiersContainerSelected]}>
+                      {item.modifiers.map((mod) => (
+                        <View key={mod.id} style={styles.modifierRow}>
+                          <View style={styles.modifierLine} />
+                          <Text style={[styles.modifierText, item.id === selectedItemId && styles.modifierTextSelected]}>{mod.name}</Text>
+                          <Text style={[styles.modifierQty, item.id === selectedItemId && styles.modifierTextSelected]}>1</Text>
+                          <Text style={[styles.modifierPrice, item.id === selectedItemId && styles.modifierTextSelected]}>{mod.price} ₽</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              ))}
+            </View>
+          );
+        })}
       </ScrollView>
 
-      {/* Bottom Navigation */}
+      {/* Bottom: scroll + add guest */}
       <View style={styles.bottomNav}>
         <TouchableOpacity style={styles.bottomNavButton}>
           <Feather name="chevron-up" size={24} color={theme.colors.textSecondary} />
@@ -102,18 +171,13 @@ export const OrderPanel: React.FC = () => {
           <Text style={styles.addGuestText}>Гость</Text>
         </TouchableOpacity>
       </View>
-
-      {/* Payment footer is now in PosScreen */}
     </View>
   );
 };
 
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.surfaceDeep,
-  },
+  container: { flex: 1, backgroundColor: theme.colors.surfaceDeep },
+
   guestHeader: {
     height: 48,
     flexDirection: 'row',
@@ -134,9 +198,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
-  itemList: {
-    flex: 1,
-  },
+
+  itemList: { flex: 1 },
+
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -146,41 +210,28 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.divider,
   },
+  sectionHeaderActive: {
+    backgroundColor: '#1B5E20',
+  },
   sectionTitle: {
     color: theme.colors.textSecondary,
     fontSize: 14,
+  },
+  sectionTitleActive: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
   sectionTotal: {
     color: theme.colors.textSecondary,
     fontSize: 14,
   },
-  mockItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.divider,
+  sectionTotalActive: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
-  mockItemText: {
-    flex: 1,
-    color: theme.colors.textPrimary,
-    fontSize: 14,
-  },
-  mockItemQty: {
-    color: theme.colors.textPrimary,
-    fontSize: 14,
-    width: 30,
-    textAlign: 'center',
-  },
-  mockItemPrice: {
-    color: theme.colors.textPrimary,
-    fontSize: 14,
-    width: 60,
-    textAlign: 'right',
-  },
+
   modifiersContainer: {
-    backgroundColor: theme.colors.surfaceDeep, 
+    backgroundColor: theme.colors.surfaceDeep,
   },
   modifiersContainerSelected: {
     backgroundColor: theme.colors.orderItemActiveText,
@@ -218,6 +269,7 @@ const styles = StyleSheet.create({
     width: 60,
     textAlign: 'right',
   },
+
   bottomNav: {
     flexDirection: 'row',
     height: 48,
@@ -243,27 +295,6 @@ const styles = StyleSheet.create({
   addGuestText: {
     color: theme.colors.textPrimary,
     fontSize: 14,
-    fontWeight: 'bold',
-  },
-  paymentFooter: {
-    height: 64,
-    backgroundColor: theme.colors.surfaceLight,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    marginHorizontal: 8,
-    marginBottom: 8,
-    borderRadius: theme.borderRadius,
-  },
-  paymentText: {
-    color: theme.colors.textSecondary,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  paymentTotal: {
-    color: theme.colors.textPrimary,
-    fontSize: 18,
     fontWeight: 'bold',
   },
 });

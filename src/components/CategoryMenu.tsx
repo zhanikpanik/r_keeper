@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Feather } from '@expo/vector-icons';
 import { theme } from '../theme/colors';
 import { useOrderStore } from '../store/orderStore';
 import { menuCategories } from '../mocks/menuData';
@@ -11,20 +10,19 @@ const GAP = 4;
 export const CategoryMenu: React.FC = () => {
   const { activeCategoryId, setActiveCategory } = useOrderStore();
 
-  // Build cells: categories + pagination arrow + fill to complete grid
-  const totalRows = Math.max(6, Math.ceil((menuCategories.length + 1) / COLS)); // +1 for pagination
-  const totalCells = totalRows * COLS;
+  // Build cells: categories + fill to complete grid
+  const ROWS = 6;
+  const totalCells = ROWS * COLS;
 
-  type Cell = { kind: 'category'; id: string; name: string } | { kind: 'pageDown' } | { kind: 'empty' };
+  type Cell = { kind: 'category'; id: string; name: string } | { kind: 'empty' };
   const cells: Cell[] = menuCategories.map(c => ({ kind: 'category' as const, id: c.id, name: c.name }));
   
-  // Fill remaining with empties, last cell = pageDown if we have many categories
-  while (cells.length < totalCells - 1) cells.push({ kind: 'empty' });
-  cells.push({ kind: 'pageDown' });
+  // Fill remaining with empties
+  while (cells.length < totalCells) cells.push({ kind: 'empty' });
 
   // Build rows
   const rows: Cell[][] = [];
-  for (let r = 0; r < totalRows; r++) {
+  for (let r = 0; r < ROWS; r++) {
     rows.push(cells.slice(r * COLS, r * COLS + COLS));
   }
 
@@ -59,11 +57,6 @@ export const CategoryMenu: React.FC = () => {
                     >
                       {cell.name}
                     </Text>
-                  </TouchableOpacity>
-                )}
-                {cell.kind === 'pageDown' && (
-                  <TouchableOpacity style={styles.pageBtn} activeOpacity={0.7}>
-                    <Feather name="chevron-down" size={24} color={theme.colors.textSecondary} />
                   </TouchableOpacity>
                 )}
                 {cell.kind === 'empty' && <View style={styles.emptyCell} />}
@@ -110,13 +103,6 @@ const styles = StyleSheet.create({
   },
   categoryTextActive: {
     fontWeight: 'bold',
-  },
-  pageBtn: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: theme.colors.surfaceLight,
-    borderRadius: theme.borderRadius,
   },
   emptyCell: { flex: 1 },
 });
