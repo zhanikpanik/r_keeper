@@ -3,12 +3,12 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../theme/colors';
 import { useOrderStore } from '../store/orderStore';
-import { menuProducts, menuCategories, getProductColor } from '../mocks/menuData';
+import { menuProducts, menuCategories } from '../mocks/menuData';
 import { Product } from '../types';
 
 const COLS = 3;
 const ROWS = 6;
-const GAP = 4;
+const GAP = 2;
 const TOTAL_CELLS = COLS * ROWS; // 18
 
 export const ProductGrid: React.FC = () => {
@@ -18,8 +18,8 @@ export const ProductGrid: React.FC = () => {
   const categoryName = category?.name || '';
 
   // Build cells
-  type Cell = { kind: 'product'; product: Product; colorIdx: number } | { kind: 'pageDown' } | { kind: 'empty' };
-  const cells: Cell[] = products.map((p, i) => ({ kind: 'product' as const, product: p, colorIdx: i }));
+  type Cell = { kind: 'product'; product: Product } | { kind: 'pageDown' } | { kind: 'empty' };
+  const cells: Cell[] = products.map((p) => ({ kind: 'product' as const, product: p }));
 
   const needsPagination = products.length > TOTAL_CELLS;
   // Fill remaining with empties (or pagination arrow if overflow)
@@ -51,7 +51,7 @@ export const ProductGrid: React.FC = () => {
               <View key={ci} style={[styles.cellWrap, ci < COLS - 1 && { marginRight: GAP }]}>
                 {cell.kind === 'product' && (
                   <TouchableOpacity
-                    style={[styles.productBtn, { backgroundColor: getProductColor(cell.colorIdx) }]}
+                    style={styles.productBtn}
                     onPress={() => addProduct(cell.product)}
                     activeOpacity={0.7}
                   >
@@ -75,17 +75,17 @@ export const ProductGrid: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.surfaceDeep },
+  container: { flex: 1 },
   header: {
     height: 44,
     justifyContent: 'center',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.divider,
+    backgroundColor: '#191919',
+    marginBottom: GAP,
   },
   headerText: { color: theme.colors.textPrimary, fontSize: 15, fontWeight: '600' },
 
-  grid: { flex: 1, padding: GAP },
+  grid: { flex: 1 },
   row: { flex: 1, flexDirection: 'row' },
   cellWrap: { flex: 1 },
 
@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: theme.borderRadius,
+    backgroundColor: '#191919',
     paddingHorizontal: 6,
     paddingVertical: 4,
   },
@@ -113,7 +113,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: theme.colors.surfaceLight,
-    borderRadius: theme.borderRadius,
   },
-  emptyCell: { flex: 1 },
+  emptyCell: { flex: 1, backgroundColor: '#191919' },
 });

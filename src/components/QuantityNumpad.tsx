@@ -1,93 +1,104 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Feather } from '@expo/vector-icons';
 import { theme } from '../theme/colors';
 import { useOrderStore } from '../store/orderStore';
+
+const GAP = 2;
 
 export const QuantityNumpad: React.FC = () => {
   const { selectedItemId, items, updateQuantity } = useOrderStore();
   const selectedItem = items.find(item => item.id === selectedItemId);
-  
+
   const [inputValue, setInputValue] = useState('');
 
   // Reset input when item selection changes
   useEffect(() => {
-    setInputValue('');
+    if (selectedItem) {
+      setInputValue(String(selectedItem.quantity));
+    } else {
+      setInputValue('');
+    }
   }, [selectedItemId]);
 
   if (!selectedItem) return null;
 
-  const handlePress = (num: string) => {
-    const newValue = inputValue + num;
-    // Don't allow more than 3 digits for sanity
-    if (newValue.length > 3) return;
-    setInputValue(newValue);
-    const newQty = parseInt(newValue, 10);
+  const displayValue = inputValue || String(selectedItem.quantity);
+
+  const applyValue = (val: string) => {
+    const newQty = parseInt(val, 10);
+    if (isNaN(newQty) || newQty < 0) return;
     const delta = newQty - selectedItem.quantity;
     updateQuantity(selectedItem.id, delta);
   };
 
-  const handleClear = () => {
-    setInputValue('');
-    // Reset to 1
-    const delta = 1 - selectedItem.quantity;
-    updateQuantity(selectedItem.id, delta);
+  const handlePress = (num: string) => {
+    const newValue = inputValue + num;
+    if (newValue.length > 3) return;
+    setInputValue(newValue);
+    applyValue(newValue);
   };
 
   const handleBackspace = () => {
     const newValue = inputValue.slice(0, -1);
     setInputValue(newValue);
     if (newValue) {
-      const newQty = parseInt(newValue, 10);
-      const delta = newQty - selectedItem.quantity;
-      updateQuantity(selectedItem.id, delta);
+      applyValue(newValue);
     } else {
-      const delta = 1 - selectedItem.quantity;
-      updateQuantity(selectedItem.id, delta);
+      // Keep at current quantity when clearing
+      setInputValue('');
     }
   };
 
-  const renderKey = (val: string, flex = 1) => (
-    <View style={[styles.keyWrapper, { flex }]}>
-      <TouchableOpacity style={styles.key} onPress={() => handlePress(val)}>
-        <Text style={styles.keyText}>{val}</Text>
+  const handleComma = () => {
+    // Decimal not used for quantity, but placeholder for consistency
+  };
+
+  const renderKey = (label: string, onPress: () => void) => (
+    <View style={styles.keyWrapper}>
+      <TouchableOpacity style={styles.key} onPress={onPress} activeOpacity={0.6}>
+        <Text style={styles.keyText}>{label}</Text>
       </TouchableOpacity>
     </View>
   );
 
   return (
     <View style={styles.container}>
-      <View style={styles.display}>
-        <Text style={styles.labelText}>Количество для {selectedItem.product.name}:</Text>
-        <Text style={styles.valueText}>{inputValue || selectedItem.quantity}</Text>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerText}>Кол-во порций</Text>
       </View>
 
-      <View style={styles.grid}>
-        <View style={styles.row}>
-          {renderKey('1')}
-          {renderKey('2')}
-          {renderKey('3')}
-        </View>
-        <View style={styles.row}>
-          {renderKey('4')}
-          {renderKey('5')}
-          {renderKey('6')}
-        </View>
-        <View style={styles.row}>
-          {renderKey('7')}
-          {renderKey('8')}
-          {renderKey('9')}
-        </View>
-        <View style={styles.row}>
-          <View style={styles.keyWrapper}>
-            <TouchableOpacity style={[styles.key, styles.clearKey]} onPress={handleClear}>
-              <Text style={styles.keyText}>C</Text>
-            </TouchableOpacity>
+      {/* Display + numpad */}
+      <View style={styles.body}>
+        {/* Top: large quantity display */}
+        <View style={styles.displayRow}>
+          <View style={styles.displayCell}>
+            <Text style={styles.displayValue}>{displayValue}</Text>
           </View>
-          {renderKey('0')}
+        </View>
+
+        {/* Numpad grid: 7-8-9 / 4-5-6 / 1-2-3 / 0-,-← */}
+        <View style={styles.numpadRow}>
+          {renderKey('7', () => handlePress('7'))}
+          {renderKey('8', () => handlePress('8'))}
+          {renderKey('9', () => handlePress('9'))}
+        </View>
+        <View style={styles.numpadRow}>
+          {renderKey('4', () => handlePress('4'))}
+          {renderKey('5', () => handlePress('5'))}
+          {renderKey('6', () => handlePress('6'))}
+        </View>
+        <View style={styles.numpadRow}>
+          {renderKey('1', () => handlePress('1'))}
+          {renderKey('2', () => handlePress('2'))}
+          {renderKey('3', () => handlePress('3'))}
+        </View>
+        <View style={styles.numpadRow}>
+          {renderKey('0', () => handlePress('0'))}
+          {renderKey(',', handleComma)}
           <View style={styles.keyWrapper}>
-            <TouchableOpacity style={styles.key} onPress={handleBackspace}>
-              <Feather name="delete" size={24} color={theme.colors.textPrimary} />
+            <TouchableOpacity style={styles.key} onPress={handleBackspace} activeOpacity={0.6}>
+              <Text style={styles.backspaceText}>←</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -99,48 +110,66 @@ export const QuantityNumpad: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 8,
+    backgroundColor: theme.colors.surfaceDeep,
   },
-  display: {
-    padding: 16,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: theme.borderRadius,
-    marginBottom: 8,
+  header: {
+    height: 48,
+    justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: theme.colors.surfaceLight,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.divider,
   },
-  labelText: {
-    color: theme.colors.textSecondary,
-    fontSize: 12,
-    marginBottom: 4,
-  },
-  valueText: {
+  headerText: {
     color: theme.colors.textPrimary,
-    fontSize: 32,
-    fontWeight: 'bold',
+    fontSize: 15,
+    fontWeight: '600',
   },
-  grid: {
+  body: {
     flex: 1,
+    padding: GAP,
   },
-  row: {
+  displayRow: {
+    flex: 1,
+    marginBottom: GAP,
+  },
+  displayCell: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    paddingRight: 24,
+    backgroundColor: '#191919',
+    borderRadius: theme.borderRadius,
+  },
+  displayValue: {
+    color: theme.colors.textPrimary,
+    fontSize: 48,
+    fontWeight: '300',
+  },
+  numpadRow: {
     flex: 1,
     flexDirection: 'row',
+    marginBottom: GAP,
   },
   keyWrapper: {
-    padding: 2,
+    flex: 1,
+    marginHorizontal: GAP / 2,
   },
   key: {
     flex: 1,
-    backgroundColor: theme.colors.surfaceLight,
-    borderRadius: theme.borderRadius,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  clearKey: {
-    backgroundColor: theme.colors.orderAlert,
+    backgroundColor: '#191919',
+    borderRadius: theme.borderRadius,
   },
   keyText: {
     color: theme.colors.textPrimary,
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '300',
+  },
+  backspaceText: {
+    color: theme.colors.textPrimary,
+    fontSize: 28,
+    fontWeight: '300',
   },
 });

@@ -29,10 +29,25 @@
   - Modifier: Modifier grid (when item selected)
   - Search: Keyboard + filtered results
 
+## Done
+- [x] Auto-save: every mutation syncs to orders[] immediately
+- [x] Footer: Пречек | Оплата | Скидки | Ввести код | Готово (columns match content above)
+- [x] Footer: item selected → Отмена + Готово
+- [x] OrderPanel: scroll via up/down buttons (disabled when nothing to scroll)
+- [x] OrderPanel: static "Все гости" header (removed nav arrows)
+- [x] Dynamic grid rows based on screen height (2–5 rows)
+- [x] Quantity numpad matching reference design
+
 ## TODO
 - [ ] Orders screen: pixel-perfect polish
 - [ ] POS screen: category menu (2-col grid, not bar)
 - [ ] POS screen: product grid with colored cards + prices
 - [ ] POS screen: search with Russian keyboard
-- [ ] POS screen: "Сохранить заказ" / "Отмена" / "Готово" footer
+- [ ] POS header: order settings menu (⋮) — change table, waiter, type, add comment, merge/split order
 - [ ] Tables screen: grid view
+- [ ] Bell button: notifications (kitchen ready, alerts)
+
+### Later
+- [ ] Комментарий — add note to a dish
+- [ ] Скидка — discount on specific item
+- [ ] Guest feature (По гостям, + Гость, Курс)

@@ -5,7 +5,7 @@ import { useOrderStore } from '../store/orderStore';
 import { menuCategories } from '../mocks/menuData';
 
 const COLS = 2;
-const GAP = 4;
+const GAP = 2;
 
 export const CategoryMenu: React.FC = () => {
   const { activeCategoryId, setActiveCategory } = useOrderStore();
@@ -70,17 +70,17 @@ export const CategoryMenu: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.surfaceDeep },
+  container: { flex: 1 },
   header: {
     height: 44,
     justifyContent: 'center',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.divider,
+    backgroundColor: theme.colors.surfaceLight,
+    marginBottom: GAP,
   },
   headerText: { color: theme.colors.textPrimary, fontSize: 15, fontWeight: '600' },
 
-  grid: { flex: 1, padding: GAP },
+  grid: { flex: 1 },
   row: { flex: 1, flexDirection: 'row' },
   cellWrap: { flex: 1 },
 
@@ -89,7 +89,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: theme.colors.surfaceLight,
-    borderRadius: theme.borderRadius,
     paddingHorizontal: 4,
   },
   categoryActive: {
@@ -104,5 +103,5 @@ const styles = StyleSheet.create({
   categoryTextActive: {
     fontWeight: 'bold',
   },
-  emptyCell: { flex: 1 },
+  emptyCell: { flex: 1, backgroundColor: theme.colors.surfaceLight },
 });

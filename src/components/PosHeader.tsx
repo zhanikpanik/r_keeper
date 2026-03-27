@@ -74,10 +74,6 @@ export const PosHeader: React.FC<Props> = ({
       </View>
 
       <View style={styles.rightActions}>
-        <TouchableOpacity style={styles.actionButton}>
-          <Text style={styles.actionText}>По гостям</Text>
-        </TouchableOpacity>
-
         <TouchableOpacity style={styles.iconButton}>
           <MaterialCommunityIcons name="bell" size={20} color={theme.colors.textPrimary} />
           <Text style={styles.badgeText}>2</Text>
@@ -93,14 +89,11 @@ export const PosHeader: React.FC<Props> = ({
 
 const styles = StyleSheet.create({
   container: {
-    height: 64,
+    height: 52,
     flexDirection: 'row',
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: theme.colors.background,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.divider,
     gap: 8,
   },
   backButton: {
@@ -118,10 +111,11 @@ const styles = StyleSheet.create({
   },
   middleContext: {
     flex: 1,
+    height: 44,
     backgroundColor: theme.colors.surfaceLight,
     borderRadius: theme.borderRadius,
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    justifyContent: 'center',
   },
   contextTopRow: {
     flexDirection: 'row',

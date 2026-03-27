@@ -9,6 +9,7 @@ export const theme = {
     textPrimary: '#FFFFFF',
     textSecondary: '#999999',
     textDark: '#000000',
+    textDisabled: '#555555',
     tabActive: '#5B4FE8', 
     orderActive: '#1B5E20', 
     orderAlert: '#7B1818', 

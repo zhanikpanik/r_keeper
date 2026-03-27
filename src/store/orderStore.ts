@@ -71,6 +71,20 @@ const seedOrders: Order[] = [
   },
 ];
 
+// ── Helper: calculate total from items ──
+const calcTotal = (items: OrderItem[]): number =>
+  items.reduce((sum, item) => {
+    const modPrice = item.modifiers.reduce((ms, m) => ms + m.price, 0);
+    return sum + (item.product.price + modPrice) * item.quantity;
+  }, 0);
+
+// Get next order number
+const getNextOrderNumber = (orders: Order[]): string => {
+  const nums = orders.map(o => parseFloat(o.number)).filter(n => !isNaN(n));
+  const maxNum = nums.length > 0 ? Math.max(...nums) : 0;
+  return String(Math.floor(maxNum) + 1);
+};
+
 interface OrderStoreState {
   // ── All orders ──
   orders: Order[];
@@ -83,21 +97,20 @@ interface OrderStoreState {
   tableId: string;
   isQuickCheck: boolean;
   selectedItemId: string | null;
-  activeGuestId: string | null; // which guest new items get assigned to
+  activeGuestId: string | null;
   activeAction: ActiveAction;
   activeCategoryId: string;
   activeModifierGroupId: string;
 
   // ── Order list actions ──
-  createNewOrder: () => string; // returns order ID (legacy, use createOrderForTable)
   createOrderForTable: (tableId: string, tableNumber: string, zone: string) => string;
   createQuickCheck: () => string;
   getOrderForTable: (tableId: string) => Order | undefined;
   openOrder: (orderId: string) => void;
-  saveCurrentOrder: () => void;
+  closeOrder: () => void;
   deleteOrder: (orderId: string) => void;
 
-  // ── POS editing actions ──
+  // ── POS editing actions (all auto-save) ──
   addGuest: () => void;
   setActiveGuest: (guestId: string | null) => void;
   addProduct: (product: Product) => void;
@@ -114,11 +127,26 @@ interface OrderStoreState {
   assignItemToGuest: (itemId: string, guestId: string | null) => void;
 }
 
-// Get next order number
-const getNextOrderNumber = (orders: Order[]): string => {
-  const nums = orders.map(o => parseFloat(o.number)).filter(n => !isNaN(n));
-  const maxNum = nums.length > 0 ? Math.max(...nums) : 0;
-  return String(Math.floor(maxNum) + 1);
+// ── Sync current editing state back into the orders array ──
+const syncToOrders = (state: OrderStoreState): Order[] => {
+  if (!state.currentOrderId) return state.orders;
+
+  const total = calcTotal(state.items);
+  return state.orders.map(o =>
+    o.id === state.currentOrderId
+      ? {
+          ...o,
+          items: state.items,
+          guests: state.guests,
+          totalAmount: total,
+          guestCount: state.guests.length,
+          tableNumber: state.tableNumber,
+          tableId: state.tableId,
+          isQuickCheck: state.isQuickCheck,
+          status: total > 0 ? 'active' as const : o.status,
+        }
+      : o
+  );
 };
 
 export const useOrderStore = create<OrderStoreState>((set, get) => ({
@@ -138,42 +166,41 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
 
   // ── Order list ──
 
-  createNewOrder: () => {
-    // Legacy — prefer createOrderForTable or createQuickCheck
-    const state = get();
-    const id = generateId();
-    const guest1Id = generateId();
-    set({
-      currentOrderId: id,
-      items: [],
-      guests: [{ id: guest1Id, name: 'Гость 1' }],
-      tableNumber: '',
-      tableId: '',
-      isQuickCheck: false,
-      selectedItemId: null,
-      activeGuestId: guest1Id,
-      activeAction: null,
-      activeCategoryId: 'hot',
-      activeModifierGroupId: 'filling',
-    });
-    return id;
-  },
-
   createOrderForTable: (tableId: string, tableNumber: string, zone: string) => {
+    const state = get();
     // Check if table already has an active order
-    const existing = get().orders.find(o => o.tableId === tableId && o.status !== 'inactive');
+    const existing = state.orders.find(o => o.tableId === tableId && o.status !== 'inactive');
     if (existing) {
-      // Open existing order instead
       get().openOrder(existing.id);
       return existing.id;
     }
 
     const id = generateId();
     const guest1Id = generateId();
+    const guests = [{ id: guest1Id, name: 'Гость 1' }];
+
+    // Create order immediately in orders list
+    const newOrder: Order = {
+      id,
+      number: getNextOrderNumber(state.orders),
+      status: 'active',
+      waiter: 'Иванов',
+      openedAt: now(),
+      zone,
+      type: 'Общий',
+      totalAmount: 0,
+      tableNumber,
+      tableId,
+      guestCount: 1,
+      guests: [...guests],
+      items: [],
+    };
+
     set({
+      orders: [...state.orders, newOrder],
       currentOrderId: id,
       items: [],
-      guests: [{ id: guest1Id, name: 'Гость 1' }],
+      guests,
       tableNumber,
       tableId,
       isQuickCheck: false,
@@ -187,12 +214,33 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
   },
 
   createQuickCheck: () => {
+    const state = get();
     const id = generateId();
     const guest1Id = generateId();
+    const guests = [{ id: guest1Id, name: 'Гость 1' }];
+
+    const newOrder: Order = {
+      id,
+      number: getNextOrderNumber(state.orders),
+      status: 'active',
+      waiter: 'Иванов',
+      openedAt: now(),
+      zone: 'Быстрый чек',
+      type: 'Общий',
+      totalAmount: 0,
+      tableNumber: '',
+      tableId: '',
+      guestCount: 1,
+      guests: [...guests],
+      items: [],
+      isQuickCheck: true,
+    };
+
     set({
+      orders: [...state.orders, newOrder],
       currentOrderId: id,
       items: [],
-      guests: [{ id: guest1Id, name: 'Гость 1' }],
+      guests,
       tableNumber: '',
       tableId: '',
       isQuickCheck: true,
@@ -213,66 +261,32 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
     const order = get().orders.find(o => o.id === orderId);
     if (!order) return;
 
-    const guestsCopy: Guest[] = JSON.parse(JSON.stringify(order.guests));
-
     set({
       currentOrderId: order.id,
       items: JSON.parse(JSON.stringify(order.items)),
-      guests: guestsCopy,
+      guests: JSON.parse(JSON.stringify(order.guests)),
       tableNumber: order.tableNumber,
       tableId: order.tableId || '',
       isQuickCheck: order.isQuickCheck || false,
       selectedItemId: null,
-      activeGuestId: guestsCopy.length > 0 ? guestsCopy[0].id : null,
+      activeGuestId: order.guests.length > 0 ? order.guests[0].id : null,
       activeAction: null,
       activeCategoryId: 'hot',
       activeModifierGroupId: 'filling',
     });
   },
 
-  saveCurrentOrder: () => {
-    const state = get();
-    if (!state.currentOrderId) return;
-
-    const total = state.getTotal();
-    const existingIdx = state.orders.findIndex(o => o.id === state.currentOrderId);
-
-    const resetState = { currentOrderId: null, items: [] as OrderItem[], guests: [] as Guest[], selectedItemId: null, tableId: '', tableNumber: '', isQuickCheck: false };
-
-    if (existingIdx >= 0) {
-      const updated = [...state.orders];
-      updated[existingIdx] = {
-        ...updated[existingIdx],
-        items: JSON.parse(JSON.stringify(state.items)),
-        guests: JSON.parse(JSON.stringify(state.guests)),
-        totalAmount: total,
-        guestCount: state.guests.length,
-        tableNumber: state.tableNumber,
-        tableId: state.tableId,
-        isQuickCheck: state.isQuickCheck,
-        status: total > 0 ? 'active' : updated[existingIdx].status,
-        hasEdit: true,
-      };
-      set({ orders: updated, ...resetState });
-    } else {
-      const newOrder: Order = {
-        id: state.currentOrderId,
-        number: getNextOrderNumber(state.orders),
-        status: 'active',
-        waiter: 'Иванов',
-        openedAt: now(),
-        zone: state.isQuickCheck ? 'Быстрый чек' : 'Основной зал',
-        type: 'Общий',
-        totalAmount: total,
-        tableNumber: state.tableNumber,
-        tableId: state.tableId,
-        guestCount: state.guests.length,
-        guests: JSON.parse(JSON.stringify(state.guests)),
-        items: JSON.parse(JSON.stringify(state.items)),
-        isQuickCheck: state.isQuickCheck,
-      };
-      set({ orders: [...state.orders, newOrder], ...resetState });
-    }
+  closeOrder: () => {
+    // Just clear current editing state — everything is already saved
+    set({
+      currentOrderId: null,
+      items: [],
+      guests: [],
+      selectedItemId: null,
+      tableId: '',
+      tableNumber: '',
+      isQuickCheck: false,
+    });
   },
 
   deleteOrder: (orderId: string) => {
@@ -281,13 +295,14 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
     }));
   },
 
-  // ── POS editing ──
+  // ── POS editing (all auto-save via syncToOrders) ──
 
   addGuest: () => {
     set((state) => {
       const newGuestNumber = state.guests.length + 1;
       const newGuest = { id: generateId(), name: `Гость ${newGuestNumber}` };
-      return { guests: [...state.guests, newGuest] };
+      const newState = { ...state, guests: [...state.guests, newGuest] };
+      return { guests: newState.guests, orders: syncToOrders(newState) };
     });
   },
 
@@ -307,16 +322,13 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
       );
 
       if (existing) {
-        // Just increment quantity — don't switch to modifier mode
-        return {
-          items: state.items.map((item) =>
-            item.id === existing.id
-              ? { ...item, quantity: item.quantity + 1 }
-              : item
-          ),
-          // Only enter modifier mode if product has modifiers AND wasn't already in the list
-          // For repeat taps, stay in browse mode
-        };
+        const newItems = state.items.map((item) =>
+          item.id === existing.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+        const newState = { ...state, items: newItems };
+        return { items: newItems, orders: syncToOrders(newState) };
       }
 
       const newItem: OrderItem = {
@@ -326,65 +338,59 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
         guestId: targetGuestId,
         modifiers: [],
       };
+      const newItems = [...state.items, newItem];
+      const newState = { ...state, items: newItems };
 
-      // Product with modifiers → enter modifier mode
-      // Product without → stay in browse mode
       if (product.hasModifiers) {
         return {
-          items: [...state.items, newItem],
+          items: newItems,
           selectedItemId: newItem.id,
           activeAction: 'modifiers' as ActiveAction,
+          orders: syncToOrders(newState),
         };
       }
 
-      return {
-        items: [...state.items, newItem],
-        // Stay in browse mode — don't select, don't change action
-      };
+      return { items: newItems, orders: syncToOrders(newState) };
     });
   },
 
   removeProduct: (itemId: string) => {
-    set((state) => ({
-      items: state.items.filter((item) => item.id !== itemId),
-      selectedItemId: state.selectedItemId === itemId ? null : state.selectedItemId,
-      activeAction: state.selectedItemId === itemId ? null : state.activeAction,
-    }));
-  },
-
-  updateQuantity: (itemId: string, delta: number) => {
     set((state) => {
-      const items = state.items.map(item => {
-        if (item.id === itemId) {
-          const newQuantity = Math.max(0, item.quantity + delta);
-          return { ...item, quantity: newQuantity };
-        }
-        return item;
-      }).filter(item => item.quantity > 0);
-
-      const itemStillExists = items.some(i => i.id === state.selectedItemId);
+      const newItems = state.items.filter((item) => item.id !== itemId);
+      const newState = { ...state, items: newItems };
       return {
-        items,
-        selectedItemId: itemStillExists ? state.selectedItemId : null,
-        activeAction: itemStillExists ? state.activeAction : null,
+        items: newItems,
+        selectedItemId: state.selectedItemId === itemId ? null : state.selectedItemId,
+        activeAction: state.selectedItemId === itemId ? null : state.activeAction,
+        orders: syncToOrders(newState),
       };
     });
   },
 
-  getTotal: () => {
-    return get().items.reduce((sum, item) => {
-      const modPrice = item.modifiers.reduce((ms, m) => ms + m.price, 0);
-      return sum + (item.product.price + modPrice) * item.quantity;
-    }, 0);
+  updateQuantity: (itemId: string, delta: number) => {
+    set((state) => {
+      const newItems = state.items.map(item => {
+        if (item.id === itemId) {
+          return { ...item, quantity: Math.max(0, item.quantity + delta) };
+        }
+        return item;
+      }).filter(item => item.quantity > 0);
+
+      const itemStillExists = newItems.some(i => i.id === state.selectedItemId);
+      const newState = { ...state, items: newItems };
+      return {
+        items: newItems,
+        selectedItemId: itemStillExists ? state.selectedItemId : null,
+        activeAction: itemStillExists ? state.activeAction : null,
+        orders: syncToOrders(newState),
+      };
+    });
   },
 
+  getTotal: () => calcTotal(get().items),
+
   getGuestTotal: (guestId: string | null) => {
-    return get().items
-      .filter(item => item.guestId === guestId)
-      .reduce((sum, item) => {
-        const modPrice = item.modifiers.reduce((ms, m) => ms + m.price, 0);
-        return sum + (item.product.price + modPrice) * item.quantity;
-      }, 0);
+    return calcTotal(get().items.filter(item => item.guestId === guestId));
   },
 
   selectItem: (itemId: string | null) => {
@@ -407,24 +413,27 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
   toggleModifier: (modifier: Modifier) => {
     set((state) => {
       if (!state.selectedItemId) return state;
-      return {
-        items: state.items.map((item) => {
-          if (item.id !== state.selectedItemId) return item;
-          const has = item.modifiers.some((m) => m.id === modifier.id);
-          const newMods = has
-            ? item.modifiers.filter((m) => m.id !== modifier.id)
-            : [...item.modifiers, modifier];
-          return { ...item, modifiers: newMods };
-        }),
-      };
+      const newItems = state.items.map((item) => {
+        if (item.id !== state.selectedItemId) return item;
+        const has = item.modifiers.some((m) => m.id === modifier.id);
+        const newMods = has
+          ? item.modifiers.filter((m) => m.id !== modifier.id)
+          : [...item.modifiers, modifier];
+        return { ...item, modifiers: newMods };
+      });
+      const newState = { ...state, items: newItems };
+      return { items: newItems, orders: syncToOrders(newState) };
     });
   },
 
   assignItemToGuest: (itemId: string, guestId: string | null) => {
-    set((state) => ({
-      items: state.items.map(item =>
+    set((state) => {
+      const newItems = state.items.map(item =>
         item.id === itemId ? { ...item, guestId } : item
-      ),
-    }));
+      );
+      const newState = { ...state, items: newItems };
+      return { items: newItems, orders: syncToOrders(newState) };
+    });
   },
 }));
+

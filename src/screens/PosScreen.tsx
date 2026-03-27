@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, StatusBar, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, StatusBar } from 'react-native';
 import { theme } from '../theme/colors';
 import { PosHeader } from '../components/PosHeader';
 import { OrderPanel } from '../components/OrderPanel';
@@ -11,10 +11,11 @@ import { SearchMode } from '../components/SearchMode';
 import { useOrderStore } from '../store/orderStore';
 
 const GAP = 4;
+const COL_GAP = 8;
 const PADDING = 8;
 
 export const PosScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
-  const { selectedItemId, items, getTotal, saveCurrentOrder, selectItem, tableNumber, guests, isQuickCheck } = useOrderStore();
+  const { selectedItemId, items, getTotal, closeOrder, selectItem, tableNumber, guests, isQuickCheck } = useOrderStore();
   const selectedItem = items.find(i => i.id === selectedItemId);
   const isItemSelected = !!selectedItem;
   const total = getTotal();
@@ -22,27 +23,7 @@ export const PosScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
 
   const handleBack = () => {
-    if (items.length > 0) {
-      Alert.alert(
-        'Несохранённые изменения',
-        'Сохранить заказ перед выходом?',
-        [
-          { text: 'Не сохранять', style: 'destructive', onPress: () => navigation?.navigate('Orders') },
-          { text: 'Отмена', style: 'cancel' },
-          { text: 'Сохранить', onPress: () => { saveCurrentOrder(); navigation?.navigate('Orders'); } },
-        ]
-      );
-    } else {
-      navigation?.navigate('Orders');
-    }
-  };
-
-  const handleSave = () => {
-    if (items.length === 0) {
-      Alert.alert('Пустой заказ', 'Добавьте хотя бы одно блюдо', [{ text: 'OK' }]);
-      return;
-    }
-    saveCurrentOrder();
+    closeOrder();
     navigation?.navigate('Orders');
   };
 
@@ -80,7 +61,7 @@ export const PosScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
             <OrderPanel />
           </View>
 
-          <View style={{ width: GAP }} />
+          <View style={{ width: COL_GAP }} />
 
           {searchMode ? (
             /* Search mode: products + keyboard fill the right area */
@@ -97,7 +78,7 @@ export const PosScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
                 {isItemSelected ? <ItemActionsMenu /> : <CategoryMenu />}
               </View>
 
-              <View style={{ width: GAP }} />
+              <View style={{ width: COL_GAP }} />
 
               {/* ── Right: Products or Modifiers ── */}
               <View style={styles.rightCol}>
@@ -109,36 +90,54 @@ export const PosScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
 
         {/* ═══ FOOTER ═══ */}
         <View style={[styles.footerRow, { paddingHorizontal: PADDING }]}>
-          <TouchableOpacity style={styles.paymentBtn}>
-            <Text style={styles.paymentLabel}>Оплата</Text>
-            <Text style={styles.paymentAmount}>{formatAmount(total)} ₽</Text>
-          </TouchableOpacity>
+          {/* ── Left: Оплата + Пречек (matches order panel) ── */}
+          <View style={styles.footerLeft}>
+            <TouchableOpacity style={styles.precheckBtn}>
+              <Text style={styles.precheckText}>Пречек</Text>
+            </TouchableOpacity>
+            <View style={{ width: GAP }} />
+            <TouchableOpacity style={styles.paymentBtn}>
+              <Text style={styles.paymentLabel}>Оплата</Text>
+              <Text style={styles.paymentAmount}>{formatAmount(total)} ₽</Text>
+            </TouchableOpacity>
+          </View>
 
           <View style={{ width: GAP }} />
 
           {isItemSelected ? (
             <>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => selectItem(null)}>
-                <Text style={styles.cancelText}>Отмена</Text>
-              </TouchableOpacity>
+              {/* ── Middle + Right: Отмена + Готово (item editing) ── */}
+              <View style={styles.footerMid}>
+                <TouchableOpacity style={styles.cancelBtn} onPress={() => selectItem(null)}>
+                  <Text style={styles.cancelText}>Отмена</Text>
+                </TouchableOpacity>
+              </View>
               <View style={{ width: GAP }} />
-              <TouchableOpacity style={styles.doneBtn} onPress={() => selectItem(null)}>
-                <Text style={styles.doneText}>Готово</Text>
-              </TouchableOpacity>
+              <View style={styles.footerRight}>
+                <TouchableOpacity style={styles.doneBtn} onPress={() => selectItem(null)}>
+                  <Text style={styles.doneText}>Готово</Text>
+                </TouchableOpacity>
+              </View>
             </>
           ) : (
             <>
-              <TouchableOpacity style={styles.secondaryBtn}>
-                <Text style={styles.secondaryText}>Скидки{'\n'}и наценки</Text>
-              </TouchableOpacity>
+              {/* ── Middle: Скидки + Ввести код (matches categories) ── */}
+              <View style={styles.footerMid}>
+                <TouchableOpacity style={styles.secondaryBtn}>
+                  <Text style={styles.secondaryText}>Скидки{'\n'}и наценки</Text>
+                </TouchableOpacity>
+                <View style={{ width: GAP }} />
+                <TouchableOpacity style={styles.secondaryBtn}>
+                  <Text style={styles.secondaryText}>Ввести код</Text>
+                </TouchableOpacity>
+              </View>
               <View style={{ width: GAP }} />
-              <TouchableOpacity style={styles.secondaryBtn}>
-                <Text style={styles.secondaryText}>Ввести код</Text>
-              </TouchableOpacity>
-              <View style={{ width: GAP }} />
-              <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-                <Text style={styles.saveText}>Сохранить заказ</Text>
-              </TouchableOpacity>
+              {/* ── Right: Готово (matches products) ── */}
+              <View style={styles.footerRight}>
+                <TouchableOpacity style={styles.doneBtn} onPress={handleBack}>
+                  <Text style={styles.doneText}>Готово</Text>
+                </TouchableOpacity>
+              </View>
             </>
           )}
         </View>
@@ -151,34 +150,29 @@ const formatAmount = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: theme.colors.background },
-  root: { flex: 1 },
+  root: { flex: 1, backgroundColor: '#000000' },
 
   mainRow: {
     flex: 1,
     flexDirection: 'row',
     paddingHorizontal: PADDING,
     paddingTop: GAP,
+    paddingBottom: COL_GAP,
   },
   leftCol: {
     flex: 0.35,
-    borderRadius: theme.borderRadius,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: theme.colors.divider,
+    borderRadius: theme.borderRadius,
   },
   midCol: {
     flex: 0.25,
-    borderRadius: theme.borderRadius,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: theme.colors.divider,
+    borderRadius: theme.borderRadius,
   },
   rightCol: {
     flex: 0.40,
-    borderRadius: theme.borderRadius,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: theme.colors.divider,
+    borderRadius: theme.borderRadius,
   },
   searchRightCol: {
     flex: 0.65,
@@ -189,24 +183,60 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingVertical: GAP,
   },
-  paymentBtn: {
+  footerLeft: {
     flex: 0.35,
+    flexDirection: 'row',
+  },
+  footerMid: {
+    flex: 0.25,
+    flexDirection: 'row',
+  },
+  footerRight: {
+    flex: 0.40,
+  },
+  paymentBtn: {
+    flex: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: '#00C853',
     borderRadius: theme.borderRadius,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
   },
   paymentLabel: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
   },
   paymentAmount: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
+  },
+  precheckBtn: {
+    flex: 0.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surfaceLight,
+    borderRadius: theme.borderRadius,
+  },
+  precheckText: {
+    color: theme.colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  secondaryBtn: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surfaceLight,
+    borderRadius: theme.borderRadius,
+  },
+  secondaryText: {
+    color: theme.colors.textPrimary,
+    fontSize: 13,
+    fontWeight: '500',
+    textAlign: 'center',
   },
   cancelBtn: {
     flex: 1,
@@ -221,7 +251,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   doneBtn: {
-    flex: 1.6,
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#00C853',
@@ -232,31 +262,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  secondaryBtn: {
-    flex: 0.8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: theme.colors.surfaceLight,
-    borderRadius: theme.borderRadius,
-  },
-  secondaryText: {
-    color: theme.colors.textPrimary,
-    fontSize: 13,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  saveBtn: {
-    flex: 1.6,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-    borderRadius: theme.borderRadius,
-    borderWidth: 1,
-    borderColor: '#00C853',
-  },
-  saveText: {
-    color: '#00C853',
-    fontSize: 15,
-    fontWeight: '600',
-  },
+
 });

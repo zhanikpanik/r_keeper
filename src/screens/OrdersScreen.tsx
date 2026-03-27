@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, SafeAreaView, StatusBar } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, StyleSheet, Text, TouchableOpacity, SafeAreaView, StatusBar, useWindowDimensions } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { theme } from '../theme/colors';
 import { OrderCard } from '../components/OrderCard';
@@ -10,11 +10,15 @@ import { FloorTable } from '../mocks/floorPlan';
 import { Order } from '../types';
 
 const COLUMNS = 4;
-const ROWS = 5;
 const GAP = 8;
 const PADDING = 8;
-const CELLS_PER_PAGE = COLUMNS * ROWS; // 20
-const ORDER_SLOTS = CELLS_PER_PAGE - 1; // 19 (cell 0 = action buttons)
+
+const getRows = (height: number): number => {
+  if (height < 500) return 2;
+  if (height < 800) return 3;
+  if (height < 1000) return 4;
+  return 5;
+};
 
 export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState<'orders' | 'tables'>('orders');
@@ -24,6 +28,12 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const createQuickCheck = useOrderStore((s) => s.createQuickCheck);
   const openOrder = useOrderStore((s) => s.openOrder);
   const isOrders = activeTab === 'orders';
+
+  // ── Dynamic rows based on screen height ──
+  const { height } = useWindowDimensions();
+  const ROWS = getRows(height);
+  const CELLS_PER_PAGE = COLUMNS * ROWS;
+  const ORDER_SLOTS = CELLS_PER_PAGE - 1; // cell 0 = action buttons
 
   // ── Pagination (orders only) ──
   const totalItems = orders.length;

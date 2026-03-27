@@ -10,7 +10,7 @@ import { GuestPicker } from './GuestPicker';
 
 const COLS = 3;
 const ROWS = 5;
-const GAP = 4;
+const GAP = 2;
 const TOTAL_CELLS = COLS * ROWS;
 
 export const ModifierGrid: React.FC = () => {
@@ -116,18 +116,18 @@ export const ModifierGrid: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.surfaceDeep },
+  container: { flex: 1 },
   header: {
     height: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.divider,
+    backgroundColor: theme.colors.surfaceLight,
+    marginBottom: GAP,
   },
   headerBack: { width: 44, justifyContent: 'center', alignItems: 'center' },
   headerText: { flex: 1, color: theme.colors.textPrimary, fontSize: 15, fontWeight: '600', textAlign: 'center' },
 
-  grid: { flex: 1, padding: GAP },
+  grid: { flex: 1 },
   row: { flex: 1, flexDirection: 'row' },
   cellWrap: { flex: 1 },
 
@@ -136,7 +136,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: theme.colors.surfaceLight,
-    borderRadius: theme.borderRadius,
     paddingHorizontal: 4,
   },
   modActive: {
@@ -151,5 +150,5 @@ const styles = StyleSheet.create({
     color: '#000',
     fontWeight: 'bold',
   },
-  emptyCell: { flex: 1 },
+  emptyCell: { flex: 1, backgroundColor: theme.colors.surfaceLight },
 });
