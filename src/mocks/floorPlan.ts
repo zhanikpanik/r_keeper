@@ -1,89 +1,56 @@
-export type TableSize = 'regular' | 'large';
-
 export interface FloorTable {
   id: string;
   number: string;
-  size: TableSize;
-  col: number;
-  row: number;
   zone: string;
   capacity: number;
+  col: number;
+  row: number;
+  // small=1x1 circle, regular=2x1 pill, wide=3x1, tall=1x2, bar=1x3
+  size: 'small' | 'regular' | 'wide' | 'tall' | 'bar';
 }
 
-export const GRID = {
-  gap: 8,
-};
+export interface FloorZone {
+  id: string;
+  name: string;
+  tables: FloorTable[];
+  cols: number;
+  rows: number;
+}
 
-// ── Основной зал (10 cols × 7 rows) ──
-//
-// Imagine looking down at the restaurant from above:
-//
-//    ╔═══════════════════════════════════════════════╗
-//    ║  [VIP 5][VIP 5]    [VIP 1][VIP 1]       [ 9]║  ← back wall, VIP + booth
-//    ║                                          [ 8]║  ← right wall booths
-//    ║     [ 2]      [ 3]      [ 7]             [11]║  ← center dining
-//    ║                                              ║
-//    ║          [10]      [ 4]                       ║  ← center dining
-//    ║                                              ║
-//    ║  [17] [16] [15] [14] [13] [12]               ║  ← bar counter row
-//    ╚═══════════════════════════════════════════════╝
-//          entrance ↓
+// Size multipliers
+export const SIZE_W: Record<string, number> = { small: 1, regular: 2, wide: 3, tall: 1, bar: 1 };
+export const SIZE_H: Record<string, number> = { small: 1, regular: 1, wide: 1, tall: 2, bar: 3 };
 
-export const floorTablesMain: FloorTable[] = [
-  // Back wall — VIP large tables
-  { id: 't5',  number: '5',  size: 'large',   col: 0, row: 0, zone: 'Основной зал', capacity: 6 },
-  { id: 't1',  number: '1',  size: 'large',   col: 3, row: 0, zone: 'Основной зал', capacity: 6 },
+// ── Основной зал (8 cols × 5 rows) ──
+const mainTables: FloorTable[] = [
+  // Back row — small round tables
+  { id: 't1',  number: '1',  zone: 'Основной зал', capacity: 2, col: 0, row: 0, size: 'small' },
+  { id: 't2',  number: '2',  zone: 'Основной зал', capacity: 2, col: 1, row: 0, size: 'small' },
+  { id: 't5',  number: '5',  zone: 'Основной зал', capacity: 4, col: 3, row: 0, size: 'regular' },
+  { id: 't9',  number: '9',  zone: 'Основной зал', capacity: 4, col: 7, row: 0, size: 'bar' },
 
-  // Right wall — booths (stacked vertically)
-  { id: 't9',  number: '9',  size: 'regular', col: 8, row: 0, zone: 'Основной зал', capacity: 4 },
-  { id: 't8',  number: '8',  size: 'regular', col: 8, row: 1, zone: 'Основной зал', capacity: 4 },
-  { id: 't11', number: '11', size: 'regular', col: 8, row: 2, zone: 'Основной зал', capacity: 4 },
+  // Middle row — wide tables
+  { id: 't3',  number: '3',  zone: 'Основной зал', capacity: 6, col: 0, row: 2, size: 'wide' },
+  { id: 't7',  number: '7',  zone: 'Основной зал', capacity: 4, col: 4, row: 2, size: 'regular' },
 
-  // Center dining — scattered with gaps
-  { id: 't2',  number: '2',  size: 'regular', col: 1, row: 2, zone: 'Основной зал', capacity: 4 },
-  { id: 't3',  number: '3',  size: 'regular', col: 3, row: 2, zone: 'Основной зал', capacity: 4 },
-  { id: 't7',  number: '7',  size: 'regular', col: 5, row: 2, zone: 'Основной зал', capacity: 2 },
-
-  { id: 't10', number: '10', size: 'regular', col: 2, row: 4, zone: 'Основной зал', capacity: 4 },
-  { id: 't4',  number: '4',  size: 'regular', col: 4, row: 4, zone: 'Основной зал', capacity: 4 },
-
-  // Bar counter — bottom row, tight together
-  { id: 't17', number: '17', size: 'regular', col: 0, row: 6, zone: 'Основной зал', capacity: 2 },
-  { id: 't16', number: '16', size: 'regular', col: 1, row: 6, zone: 'Основной зал', capacity: 2 },
-  { id: 't15', number: '15', size: 'regular', col: 2, row: 6, zone: 'Основной зал', capacity: 2 },
-  { id: 't14', number: '14', size: 'regular', col: 3, row: 6, zone: 'Основной зал', capacity: 2 },
-  { id: 't13', number: '13', size: 'regular', col: 4, row: 6, zone: 'Основной зал', capacity: 2 },
-  { id: 't12', number: '12', size: 'regular', col: 5, row: 6, zone: 'Основной зал', capacity: 2 },
+  // Bottom row
+  { id: 't4',  number: '4',  zone: 'Основной зал', capacity: 2, col: 0, row: 4, size: 'small' },
+  { id: 't8',  number: '8',  zone: 'Основной зал', capacity: 2, col: 1, row: 4, size: 'small' },
+  { id: 't10', number: '10', zone: 'Основной зал', capacity: 4, col: 4, row: 4, size: 'regular' },
 ];
 
-// ── Веранда (7 cols × 5 rows) ──
-//
-//    ╔═══════════════════════════════╗
-//    ║ [21][21]   [22][22]   [23]   ║  ← big tables by the railing
-//    ║                              ║
-//    ║    [24]       [25]     [26]  ║  ← middle
-//    ║                              ║
-//    ║  [27]    [28]    [29]        ║  ← small 2-person tables
-//    ╚═══════════════════════════════╝
+// ── Веранда (6 cols × 4 rows) ──
+const verandaTables: FloorTable[] = [
+  { id: 'v1', number: '21', zone: 'Веранда', capacity: 6, col: 0, row: 0, size: 'wide' },
+  { id: 'v2', number: '22', zone: 'Веранда', capacity: 4, col: 4, row: 0, size: 'regular' },
 
-export const floorTablesVeranda: FloorTable[] = [
-  // Row 0: large tables along railing
-  { id: 'v1', number: '21', size: 'large',   col: 0, row: 0, zone: 'Веранда', capacity: 6 },
-  { id: 'v2', number: '22', size: 'large',   col: 3, row: 0, zone: 'Веранда', capacity: 6 },
-  { id: 'v3', number: '23', size: 'regular', col: 6, row: 0, zone: 'Веранда', capacity: 4 },
-
-  // Row 2: middle tables with spacing
-  { id: 'v4', number: '24', size: 'regular', col: 1, row: 2, zone: 'Веранда', capacity: 4 },
-  { id: 'v5', number: '25', size: 'regular', col: 3, row: 2, zone: 'Веранда', capacity: 4 },
-  { id: 'v6', number: '26', size: 'regular', col: 5, row: 2, zone: 'Веранда', capacity: 4 },
-
-  // Row 4: small tables
-  { id: 'v7', number: '27', size: 'regular', col: 0, row: 4, zone: 'Веранда', capacity: 2 },
-  { id: 'v8', number: '28', size: 'regular', col: 2, row: 4, zone: 'Веранда', capacity: 2 },
-  { id: 'v9', number: '29', size: 'regular', col: 4, row: 4, zone: 'Веранда', capacity: 2 },
+  { id: 'v3', number: '23', zone: 'Веранда', capacity: 2, col: 0, row: 2, size: 'small' },
+  { id: 'v4', number: '24', zone: 'Веранда', capacity: 2, col: 1, row: 2, size: 'small' },
+  { id: 'v5', number: '25', zone: 'Веранда', capacity: 2, col: 2, row: 2, size: 'small' },
+  { id: 'v6', number: '26', zone: 'Веранда', capacity: 4, col: 4, row: 2, size: 'regular' },
 ];
 
-export const floorZones = [
-  { id: 'main', name: 'Основной зал', tables: floorTablesMain },
-  { id: 'veranda', name: 'Веранда', tables: floorTablesVeranda },
+export const floorZones: FloorZone[] = [
+  { id: 'main', name: 'Основной зал', tables: mainTables, cols: 8, rows: 5 },
+  { id: 'veranda', name: 'Веранда', tables: verandaTables, cols: 6, rows: 4 },
 ];

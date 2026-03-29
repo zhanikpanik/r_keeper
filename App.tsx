@@ -5,6 +5,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { LogBox } from 'react-native';
 import { OrdersScreen } from './src/screens/OrdersScreen';
 import { PosScreen } from './src/screens/PosScreen';
+import { PaymentScreen } from './src/screens/PaymentScreen';
 
 // Ignore specific warnings coming from react-native-web or navigation libraries
 LogBox.ignoreLogs([
@@ -26,6 +27,7 @@ export default function App() {
       >
         <Stack.Screen name="Orders" component={OrdersScreen} />
         <Stack.Screen name="Pos" component={PosScreen} />
+        <Stack.Screen name="Payment" component={PaymentScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

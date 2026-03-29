@@ -9,15 +9,18 @@ import { useOrderStore } from '../store/orderStore';
 import { FloorTable } from '../mocks/floorPlan';
 import { Order } from '../types';
 
-const COLUMNS = 4;
+const getCols = (width: number): number => {
+  if (width < 1200) return 4;
+  if (width < 1800) return 5;
+  return 6;
+};
 const GAP = 8;
 const PADDING = 8;
 
 const getRows = (height: number): number => {
-  if (height < 500) return 2;
-  if (height < 800) return 3;
-  if (height < 1000) return 4;
-  return 5;
+  if (height < 900) return 4;
+  if (height < 1200) return 5;
+  return 6;
 };
 
 export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
@@ -30,10 +33,17 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const isOrders = activeTab === 'orders';
 
   // ── Dynamic rows based on screen height ──
-  const { height } = useWindowDimensions();
+  const { height, width } = useWindowDimensions();
   const ROWS = getRows(height);
+  const COLUMNS = getCols(width);
   const CELLS_PER_PAGE = COLUMNS * ROWS;
   const ORDER_SLOTS = CELLS_PER_PAGE - 1; // cell 0 = action buttons
+
+  // ── Scale factor for card text ──
+  // Available grid height = screen - header(44+GAP) - tabbar(~56) - padding
+  const gridHeight = height - 44 - GAP - 56 - PADDING * 2;
+  const cardHeight = (gridHeight - GAP * (ROWS - 1)) / ROWS;
+  const scale = Math.max(0.8, Math.min(1.5, cardHeight / 120));
 
   // ── Pagination (orders only) ──
   const totalItems = orders.length;
@@ -57,13 +67,11 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     navigation.navigate('Pos');
   };
 
-  // ── Table tap from floor plan ──
+  // ── Table tap ──
   const handleTablePress = (table: FloorTable, existingOrder?: Order) => {
     if (existingOrder) {
-      // Table has an active order → open it
       openOrder(existingOrder.id);
     } else {
-      // Free table → create new order
       createOrderForTable(table.id, table.number, table.zone);
     }
     navigation.navigate('Pos');
@@ -98,27 +106,27 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         <View style={[styles.headerRow, { marginHorizontal: PADDING, marginBottom: GAP }]}>
           <View style={[styles.filterBox, { flex: 2, marginRight: GAP }]}>
             <TouchableOpacity style={styles.filterArrow}>
-              <Feather name="chevron-left" size={22} color={theme.colors.tabActive} />
+              <Feather name="chevron-left" size={22 * scale} color={theme.colors.tabActive} />
             </TouchableOpacity>
             <View style={styles.filterCenter}>
-              <Text style={styles.filterLabel}>{isOrders ? 'Все официанты' : 'Все залы'}</Text>
+              <Text style={[styles.filterLabel, { fontSize: 15 * scale }]}>{isOrders ? 'Все официанты' : 'Все залы'}</Text>
             </View>
             <TouchableOpacity style={styles.filterArrow}>
-              <Feather name="chevron-right" size={22} color={theme.colors.tabActive} />
+              <Feather name="chevron-right" size={22 * scale} color={theme.colors.tabActive} />
             </TouchableOpacity>
           </View>
 
           <TouchableOpacity style={[styles.toggleBtn, { flex: 1, marginRight: GAP }]}>
-            <Text style={styles.toggleLabel}>{isOrders ? 'По официантам' : 'По залам'}</Text>
+            <Text style={[styles.toggleLabel, { fontSize: 14 * scale }]}>{isOrders ? 'По официантам' : 'По залам'}</Text>
           </TouchableOpacity>
 
           <View style={[styles.headerRight, { flex: 1 }]}>
             <TouchableOpacity style={[styles.bellBtn, { marginRight: GAP }]}>
-              <MaterialCommunityIcons name="bell" size={20} color="#FF9800" />
-              <Text style={styles.bellBadge}>2</Text>
+              <MaterialCommunityIcons name="bell" size={20 * scale} color="#FF9800" />
+              <Text style={[styles.bellBadge, { fontSize: 14 * scale }]}>2</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.searchBtn}>
-              <Feather name="search" size={20} color={theme.colors.tabActive} />
+              <Feather name="search" size={20 * scale} color={theme.colors.tabActive} />
             </TouchableOpacity>
           </View>
         </View>
@@ -140,18 +148,18 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                     {cell.kind === 'actions' && (
                       <View style={styles.actionsCell}>
                         <TouchableOpacity style={[styles.actionHalf, { marginRight: GAP }]} onPress={handleNewOrder}>
-                          <Feather name="plus" size={24} color="#fff" />
-                          <Text style={styles.actionLabel}>Новый{'\n'}заказ</Text>
+                          <Feather name="plus" size={24 * scale} color="#fff" />
+                          <Text style={[styles.actionLabel, { fontSize: 13 * scale }]}>Новый{'\n'}заказ</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.actionHalf} onPress={handleQuickCheck}>
-                          <Feather name="plus" size={24} color="#fff" />
-                          <Text style={styles.actionLabel}>Быстрый{'\n'}чек</Text>
+                          <Feather name="plus" size={24 * scale} color="#fff" />
+                          <Text style={[styles.actionLabel, { fontSize: 13 * scale }]}>Быстрый{'\n'}чек</Text>
                         </TouchableOpacity>
                       </View>
                     )}
 
                     {cell.kind === 'order' && (
-                      <OrderCard order={cell.data} onPress={() => handleSelectOrder(cell.data.id)} />
+                      <OrderCard order={cell.data} onPress={() => handleSelectOrder(cell.data.id)} scale={scale} />
                     )}
 
                     {cell.kind === 'pagination' && (
@@ -161,7 +169,7 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                           onPress={handlePageUp}
                           disabled={page === 0}
                         >
-                          <Feather name="chevron-up" size={28} color={page === 0 ? '#999' : theme.colors.tabActive} />
+                          <Feather name="chevron-up" size={28 * scale} color={page === 0 ? '#999' : theme.colors.tabActive} />
                         </TouchableOpacity>
                         <View style={styles.pageDivider} />
                         <TouchableOpacity
@@ -169,7 +177,7 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                           onPress={handlePageDown}
                           disabled={page >= totalPages - 1}
                         >
-                          <Feather name="chevron-down" size={28} color={page >= totalPages - 1 ? '#999' : theme.colors.tabActive} />
+                          <Feather name="chevron-down" size={28 * scale} color={page >= totalPages - 1 ? '#999' : theme.colors.tabActive} />
                         </TouchableOpacity>
                       </View>
                     )}
@@ -186,7 +194,7 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         )}
 
         {/* ═══ BOTTOM TAB BAR ═══ */}
-        <BottomTabBar activeTab={activeTab} onTabChange={setActiveTab} />
+        <BottomTabBar activeTab={activeTab} onTabChange={setActiveTab} scale={scale} />
       </View>
     </SafeAreaView>
   );
@@ -251,8 +259,6 @@ const styles = StyleSheet.create({
   floorPlanArea: {
     flex: 1,
     marginBottom: GAP,
-    borderRadius: theme.borderRadius,
-    overflow: 'hidden',
   },
 
   actionsCell: { flex: 1, flexDirection: 'row' },

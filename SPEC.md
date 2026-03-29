@@ -34,20 +34,23 @@
 - [x] Footer: Пречек | Оплата | Скидки | Ввести код | Готово (columns match content above)
 - [x] Footer: item selected → Отмена + Готово
 - [x] OrderPanel: scroll via up/down buttons (disabled when nothing to scroll)
-- [x] OrderPanel: static "Все гости" header (removed nav arrows)
-- [x] Dynamic grid rows based on screen height (2–5 rows)
+- [x] Dynamic grid rows/cols based on screen size
 - [x] Quantity numpad matching reference design
+- [x] Order cards: Gorbunova-style clean typography, scaled text
+- [x] Table view: Poster-style floor plan with shapes (small/regular/wide/tall/bar)
+- [x] Payment screen: Cash/Card/Без оплаты with reason picker
+- [x] Color scheme: #333 default, #003E21 paid, #400A0A alert
 
 ## TODO
-- [ ] Orders screen: pixel-perfect polish
-- [ ] POS screen: category menu (2-col grid, not bar)
-- [ ] POS screen: product grid with colored cards + prices
-- [ ] POS screen: search with Russian keyboard
 - [ ] POS header: order settings menu (⋮) — change table, waiter, type, add comment, merge/split order
-- [ ] Tables screen: grid view
-- [ ] Bell button: notifications (kitchen ready, alerts)
+- [ ] Пречек flow — what happens on tap
+- [ ] Floor plan editor — drag & drop tables
+- [ ] E-Kassa integration (fiscal receipts)
 
 ### Later
 - [ ] Комментарий — add note to a dish
 - [ ] Скидка — discount on specific item
 - [ ] Guest feature (По гостям, + Гость, Курс)
+- [ ] Bell button: notifications (kitchen ready, alerts)
+- [ ] Скидки и наценки flow
+- [ ] Ввести код flow

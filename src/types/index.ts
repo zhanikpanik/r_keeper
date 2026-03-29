@@ -31,7 +31,7 @@ export interface OrderItem {
   modifiers: Modifier[];
 }
 
-export type OrderStatus = 'active' | 'alert' | 'inactive';
+export type OrderStatus = 'active' | 'paid' | 'alert' | 'inactive';
 
 export interface Order {
   id: string;

@@ -13,11 +13,13 @@ interface Props {
   tableNumber: string;
   guestCount: number;
   isQuickCheck?: boolean;
+  editMode?: boolean;
+  onToggleEditMode?: () => void;
 }
 
 export const PosHeader: React.FC<Props> = ({
   onBack, searchMode, searchQuery, onSearchChange, onSearchOpen, onSearchClose,
-  tableNumber, guestCount, isQuickCheck,
+  tableNumber, guestCount, isQuickCheck, editMode, onToggleEditMode,
 }) => {
   if (searchMode) {
     return (
@@ -58,9 +60,9 @@ export const PosHeader: React.FC<Props> = ({
         <Text style={styles.backText}>Назад</Text>
       </TouchableOpacity>
 
-      <View style={styles.middleContext}>
+      <TouchableOpacity style={[styles.middleContext, editMode && styles.middleContextActive]} onPress={onToggleEditMode} activeOpacity={0.7}>
         <View style={styles.contextTopRow}>
-          <Text style={styles.contextTitle}>Редактировать заказ</Text>
+          <Text style={[styles.contextTitle, editMode && styles.contextTitleActive]}>{editMode ? 'Настройки заказа' : 'Редактировать заказ'}</Text>
           <Text style={styles.contextTime}>
             {new Date().getHours().toString().padStart(2, '0')}:{new Date().getMinutes().toString().padStart(2, '0')}
           </Text>
@@ -71,7 +73,7 @@ export const PosHeader: React.FC<Props> = ({
             : `Стол: ${tableNumber || '—'}   Гостей: ${guestCount}   Основной   Общий`
           }
         </Text>
-      </View>
+      </TouchableOpacity>
 
       <View style={styles.rightActions}>
         <TouchableOpacity style={styles.iconButton}>
@@ -126,6 +128,12 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
     fontSize: 14,
     fontWeight: 'bold',
+  },
+  middleContextActive: {
+    backgroundColor: theme.colors.actionMenuPurple,
+  },
+  contextTitleActive: {
+    color: '#fff',
   },
   contextTime: {
     color: theme.colors.textSecondary,

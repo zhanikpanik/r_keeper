@@ -9,6 +9,8 @@ import { ItemActionsMenu } from '../components/ItemActionsMenu';
 import { ModifierGrid } from '../components/ModifierGrid';
 import { SearchMode } from '../components/SearchMode';
 import { useOrderStore } from '../store/orderStore';
+import { OrderSettingsMenu, OrderSetting } from '../components/OrderSettingsMenu';
+import { OrderSettingsDetail } from '../components/OrderSettingsDetail';
 
 const GAP = 4;
 const COL_GAP = 8;
@@ -21,10 +23,22 @@ export const PosScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const total = getTotal();
   const [searchMode, setSearchMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [editMode, setEditMode] = useState(false);
+  const [activeSetting, setActiveSetting] = useState<OrderSetting>(null);
 
   const handleBack = () => {
     closeOrder();
     navigation?.navigate('Orders');
+  };
+
+  const toggleEditMode = () => {
+    if (editMode) {
+      setEditMode(false);
+      setActiveSetting(null);
+    } else {
+      setEditMode(true);
+      selectItem(null); // deselect any item
+    }
   };
 
   const handleSearchOpen = () => {
@@ -52,6 +66,8 @@ export const PosScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
           tableNumber={tableNumber}
           guestCount={guests.length}
           isQuickCheck={isQuickCheck}
+          editMode={editMode}
+          onToggleEditMode={toggleEditMode}
         />
 
         {/* ═══ MAIN CONTENT ═══ */}
@@ -64,13 +80,29 @@ export const PosScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
           <View style={{ width: COL_GAP }} />
 
           {searchMode ? (
-            /* Search mode: products + keyboard fill the right area */
             <View style={styles.searchRightCol}>
               <SearchMode
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
               />
             </View>
+          ) : editMode ? (
+            <>
+              {/* ── Middle: Order settings menu ── */}
+              <View style={styles.midCol}>
+                <OrderSettingsMenu
+                  activeSetting={activeSetting}
+                  onSelectSetting={setActiveSetting}
+                />
+              </View>
+
+              <View style={{ width: COL_GAP }} />
+
+              {/* ── Right: Setting detail ── */}
+              <View style={styles.rightCol}>
+                <OrderSettingsDetail setting={activeSetting} />
+              </View>
+            </>
           ) : (
             <>
               {/* ── Middle: Categories or Actions ── */}
@@ -96,7 +128,7 @@ export const PosScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
               <Text style={styles.precheckText}>Пречек</Text>
             </TouchableOpacity>
             <View style={{ width: GAP }} />
-            <TouchableOpacity style={styles.paymentBtn}>
+            <TouchableOpacity style={styles.paymentBtn} onPress={() => navigation?.navigate('Payment')}>
               <Text style={styles.paymentLabel}>Оплата</Text>
               <Text style={styles.paymentAmount}>{formatAmount(total)} ₽</Text>
             </TouchableOpacity>

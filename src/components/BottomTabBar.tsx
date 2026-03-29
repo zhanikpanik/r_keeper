@@ -6,15 +6,16 @@ import { theme } from '../theme/colors';
 interface Props {
   activeTab: 'orders' | 'tables';
   onTabChange: (tab: 'orders' | 'tables') => void;
+  scale?: number;
 }
 
-export const BottomTabBar: React.FC<Props> = ({ activeTab, onTabChange }) => {
+export const BottomTabBar: React.FC<Props> = ({ activeTab, onTabChange, scale = 1 }) => {
   return (
     <View style={styles.wrapper}>
       <View style={styles.container}>
         {/* Menu Button */}
         <TouchableOpacity style={styles.sideButton}>
-          <Feather name="menu" size={24} color={theme.colors.textPrimary} />
+          <Feather name="menu" size={24 * scale} color={theme.colors.textPrimary} />
         </TouchableOpacity>
         
         {/* Center Tabs */}
@@ -24,7 +25,7 @@ export const BottomTabBar: React.FC<Props> = ({ activeTab, onTabChange }) => {
             onPress={() => onTabChange('orders')}
             activeOpacity={0.8}
           >
-            <Text style={[styles.tabText, activeTab === 'orders' && styles.activeTabText]}>
+            <Text style={[styles.tabText, activeTab === 'orders' && styles.activeTabText, { fontSize: 16 * scale }]}>
               Заказы
             </Text>
           </TouchableOpacity>
@@ -34,7 +35,7 @@ export const BottomTabBar: React.FC<Props> = ({ activeTab, onTabChange }) => {
             onPress={() => onTabChange('tables')}
             activeOpacity={0.8}
           >
-            <Text style={[styles.tabText, activeTab === 'tables' && styles.activeTabText]}>
+            <Text style={[styles.tabText, activeTab === 'tables' && styles.activeTabText, { fontSize: 16 * scale }]}>
               Столы
             </Text>
           </TouchableOpacity>
@@ -42,7 +43,7 @@ export const BottomTabBar: React.FC<Props> = ({ activeTab, onTabChange }) => {
         
         {/* Lock Button */}
         <TouchableOpacity style={styles.sideButton}>
-          <Feather name="lock" size={22} color={theme.colors.textPrimary} />
+          <Feather name="lock" size={22 * scale} color={theme.colors.textPrimary} />
         </TouchableOpacity>
       </View>
     </View>

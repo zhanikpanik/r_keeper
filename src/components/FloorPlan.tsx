@@ -1,54 +1,52 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, LayoutChangeEvent } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../theme/colors';
 import { useOrderStore } from '../store/orderStore';
-import { floorZones, GRID, FloorTable } from '../mocks/floorPlan';
+import { floorZones, FloorTable, SIZE_W, SIZE_H } from '../mocks/floorPlan';
 import { Order } from '../types';
+
+const GAP = 8;
+const formatAmount = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 
 interface Props {
   onTablePress: (table: FloorTable, existingOrder?: Order) => void;
 }
 
-const formatAmount = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-
 export const FloorPlan: React.FC<Props> = ({ onTablePress }) => {
   const [zoneIdx, setZoneIdx] = useState(0);
+  const [canvasSize, setCanvasSize] = useState({ w: 0, h: 0 });
   const orders = useOrderStore((s) => s.orders);
   const zone = floorZones[zoneIdx];
-  const { width: windowW, height: windowH } = useWindowDimensions();
 
-  // Auto-detect grid bounds from actual table positions
-  const { maxCol, maxRow } = useMemo(() => {
-    let mc = 0, mr = 0;
-    zone.tables.forEach(t => {
-      const colEnd = t.col + (t.size === 'large' ? 2 : 1);
-      if (colEnd > mc) mc = colEnd;
-      if (t.row + 1 > mr) mr = t.row + 1;
-    });
-    return { maxCol: mc, maxRow: mr };
-  }, [zone]);
+  const handleLayout = (e: LayoutChangeEvent) => {
+    setCanvasSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height });
+  };
 
   const getOrderForTable = (tableId: string): Order | undefined => {
     return orders.find(o => o.tableId === tableId && o.status !== 'inactive');
   };
 
-  const handlePrevZone = () => setZoneIdx(i => Math.max(0, i - 1));
-  const handleNextZone = () => setZoneIdx(i => Math.min(floorZones.length - 1, i + 1));
-
   const getTableColor = (order?: Order): string => {
-    if (!order) return theme.colors.surfaceLight;
+    if (!order) return theme.colors.orderDefault;
     if (order.status === 'alert') return theme.colors.orderAlert;
+    if (order.status === 'paid') return theme.colors.orderActive;
     return theme.colors.orderActive;
   };
 
-  // Fill available space
-  const canvasPad = 16;
-  const availW = windowW - 32 - canvasPad * 2;   // page padding + canvas padding
-  const availH = windowH - 160 - canvasPad * 2;  // header + tab bar + zone header
+  const getBorderRadius = (size: string, w: number, h: number): number => {
+    const minDim = Math.min(w, h);
+    if (size === 'small') return minDim * 0.2;
+    return minDim * 0.2;
+  };
 
-  const cellW = (availW - (maxCol - 1) * GRID.gap) / maxCol;
-  const cellH = (availH - (maxRow - 1) * GRID.gap) / maxRow;
+  const handlePrevZone = () => setZoneIdx(i => Math.max(0, i - 1));
+  const handleNextZone = () => setZoneIdx(i => Math.min(floorZones.length - 1, i + 1));
+
+  // Square cells
+  const cellFromW = canvasSize.w > 0 ? (canvasSize.w - (zone.cols - 1) * GAP) / zone.cols : 0;
+  const cellFromH = canvasSize.h > 0 ? (canvasSize.h - (zone.rows - 1) * GAP) / zone.rows : 0;
+  const cellSize = Math.min(cellFromW, cellFromH);
 
   return (
     <View style={styles.container}>
@@ -65,59 +63,58 @@ export const FloorPlan: React.FC<Props> = ({ onTablePress }) => {
         </TouchableOpacity>
       </View>
 
-      {/* Grid canvas */}
-      <View style={[styles.canvas, { padding: canvasPad }]}>
-        {zone.tables.map((table) => {
-          const order = getOrderForTable(table.id);
-          const isOccupied = !!order;
-          const bgColor = getTableColor(order);
+      {/* Canvas */}
+      <View style={styles.canvas} onLayout={handleLayout}>
+        {cellSize > 0 && (() => {
+          const gridW = zone.cols * cellSize + (zone.cols - 1) * GAP;
+          const gridH = zone.rows * cellSize + (zone.rows - 1) * GAP;
+          const offsetX = (canvasSize.w - gridW) / 2;
+          const offsetY = (canvasSize.h - gridH) / 2;
 
-          const isLarge = table.size === 'large';
-          const w = isLarge ? cellW * 2 + GRID.gap : cellW;
-          const h = cellH;
-          const left = table.col * (cellW + GRID.gap);
-          const top = table.row * (cellH + GRID.gap);
+          return zone.tables.map((table) => {
+            const order = getOrderForTable(table.id);
+            const bgColor = getTableColor(order);
 
-          return (
-            <TouchableOpacity
-              key={table.id}
-              activeOpacity={0.7}
-              onPress={() => onTablePress(table, order)}
-              style={[
-                styles.table,
-                {
-                  width: w,
-                  height: h,
-                  left,
-                  top,
-                  backgroundColor: bgColor,
-                  borderColor: isOccupied ? 'transparent' : theme.colors.divider,
-                },
-              ]}
-            >
-              <View style={styles.tableTopRow}>
-                <Text style={[styles.tableNumber, { fontSize: Math.max(14, cellH * 0.2) }]}>
+            const sw = SIZE_W[table.size];
+            const sh = SIZE_H[table.size];
+
+            const left = offsetX + table.col * (cellSize + GAP);
+            const top = offsetY + table.row * (cellSize + GAP);
+            const width = cellSize * sw + GAP * (sw - 1);
+            const height = cellSize * sh + GAP * (sh - 1);
+
+            const radius = getBorderRadius(table.size, width, height);
+            const fontSize = Math.max(16, Math.min(36, cellSize * 0.35));
+
+            return (
+              <TouchableOpacity
+                key={table.id}
+                activeOpacity={0.7}
+                onPress={() => onTablePress(table, order)}
+                style={[
+                  styles.table,
+                  {
+                    left,
+                    top,
+                    width,
+                    height,
+                    backgroundColor: bgColor,
+                    borderRadius: radius,
+                  },
+                ]}
+              >
+                <Text style={[styles.tableNumber, { fontSize }]}>
                   {table.number}
                 </Text>
-                {isOccupied && order && (
-                  <Text style={[styles.tableAmount, { fontSize: Math.max(11, cellH * 0.13) }]}>
+                {order && (
+                  <Text style={[styles.tableAmount, { fontSize: fontSize * 0.4 }]}>
                     {formatAmount(order.totalAmount)} ₽
                   </Text>
                 )}
-              </View>
-
-              {isOccupied && order ? (
-                <Text style={[styles.tableTime, { fontSize: Math.max(10, cellH * 0.11) }]}>
-                  {order.waiter} · {order.openedAt}
-                </Text>
-              ) : (
-                <Text style={[styles.tableFreeLabel, { fontSize: Math.max(10, cellH * 0.11) }]}>
-                  {table.capacity} мест
-                </Text>
-              )}
-            </TouchableOpacity>
-          );
-        })}
+              </TouchableOpacity>
+            );
+          });
+        })()}
       </View>
     </View>
   );
@@ -126,17 +123,14 @@ export const FloorPlan: React.FC<Props> = ({ onTablePress }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   header: {
-    height: 48,
+    height: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.divider,
   },
   zoneArrow: {
-    width: 48,
+    width: 44,
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
@@ -150,24 +144,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
-
   canvas: {
     flex: 1,
-    position: 'relative',
   },
-
   table: {
     position: 'absolute',
-    borderRadius: theme.borderRadius,
-    borderWidth: 1,
-    padding: 10,
-    justifyContent: 'space-between',
-  },
-
-  tableTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   tableNumber: {
     color: '#fff',
@@ -175,12 +158,8 @@ const styles = StyleSheet.create({
   },
   tableAmount: {
     color: '#fff',
-    fontWeight: '600',
-  },
-  tableTime: {
-    color: 'rgba(255,255,255,0.7)',
-  },
-  tableFreeLabel: {
-    color: 'rgba(255,255,255,0.4)',
+    opacity: 0.6,
+    fontWeight: '500',
+    marginTop: 2,
   },
 });
