@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, StatusBar } from 'react-native';
 import { theme } from '../theme/colors';
 import { useOrderStore } from '../store/orderStore';
+import { useShiftStore } from '../store/shiftStore';
 
 const formatAmount = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 
@@ -42,6 +43,11 @@ export const PaymentScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
 
   const handlePay = () => {
     if (!canPay || !currentOrderId) return;
+
+    // Record payment in shift
+    if (method !== 'none') {
+      useShiftStore.getState().recordPayment(method, total);
+    }
 
     // Update order status to paid
     useOrderStore.setState((state) => ({

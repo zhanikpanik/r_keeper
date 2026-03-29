@@ -1,5 +1,5 @@
 import React, { useRef, useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, NativeSyntheticEvent, NativeScrollEvent, LayoutChangeEvent } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Pressable, StyleSheet, NativeSyntheticEvent, NativeScrollEvent, LayoutChangeEvent } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../theme/colors';
 import { OrderItem } from './OrderItem';
@@ -65,12 +65,12 @@ export const OrderPanel: React.FC = () => {
       >
         {items.map((item) => (
           <View key={item.id}>
-            <TouchableOpacity
-              activeOpacity={1}
+            <Pressable
               onPress={() => selectItem(item.id === selectedItemId ? null : item.id)}
+              style={({ pressed }) => pressed && styles.itemPressed}
             >
               <OrderItem item={item} isSelected={item.id === selectedItemId} />
-            </TouchableOpacity>
+            </Pressable>
             {item.modifiers.length > 0 && (
               <View style={[styles.modifiersContainer, item.id === selectedItemId && styles.modifiersContainerSelected]}>
                 {item.modifiers.map((mod) => (
@@ -135,6 +135,9 @@ const styles = StyleSheet.create({
 
   itemList: { flex: 1 },
 
+  itemPressed: {
+    backgroundColor: '#333',
+  },
   modifiersContainer: {
     backgroundColor: theme.colors.surfaceDeep,
   },

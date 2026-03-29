@@ -32,7 +32,7 @@ export const OrderCard: React.FC<Props> = ({ order, onPress, scale = 1 }) => {
     >
       {/* Top: number + amount */}
       <View style={styles.mainRow}>
-        <Text style={[styles.number, { fontSize: 40 * scale, lineHeight: 44 * scale }]}>
+        <Text style={[styles.number, { fontSize: 32 * scale, lineHeight: 36 * scale }]}>
           {order.number}
         </Text>
         <Text style={[styles.amount, { fontSize: 14 * scale }]}>

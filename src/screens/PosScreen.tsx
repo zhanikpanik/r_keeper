@@ -9,36 +9,29 @@ import { ItemActionsMenu } from '../components/ItemActionsMenu';
 import { ModifierGrid } from '../components/ModifierGrid';
 import { SearchMode } from '../components/SearchMode';
 import { useOrderStore } from '../store/orderStore';
-import { OrderSettingsMenu, OrderSetting } from '../components/OrderSettingsMenu';
-import { OrderSettingsDetail } from '../components/OrderSettingsDetail';
+import { TablePickerModal } from '../components/TablePickerModal';
+import { WaiterPickerModal } from '../components/WaiterPickerModal';
+import { CommentModal } from '../components/CommentModal';
 
 const GAP = 4;
 const COL_GAP = 8;
 const PADDING = 8;
 
 export const PosScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
-  const { selectedItemId, items, getTotal, closeOrder, selectItem, tableNumber, guests, isQuickCheck } = useOrderStore();
+  const { selectedItemId, items, getTotal, closeOrder, selectItem, tableNumber, guests, isQuickCheck, currentOrderId } = useOrderStore();
+  const currentOrder = useOrderStore((s) => s.orders.find(o => o.id === s.currentOrderId));
   const selectedItem = items.find(i => i.id === selectedItemId);
   const isItemSelected = !!selectedItem;
   const total = getTotal();
   const [searchMode, setSearchMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [editMode, setEditMode] = useState(false);
-  const [activeSetting, setActiveSetting] = useState<OrderSetting>(null);
+  const [tablePickerVisible, setTablePickerVisible] = useState(false);
+  const [waiterPickerVisible, setWaiterPickerVisible] = useState(false);
+  const [commentVisible, setCommentVisible] = useState(false);
 
   const handleBack = () => {
     closeOrder();
     navigation?.navigate('Orders');
-  };
-
-  const toggleEditMode = () => {
-    if (editMode) {
-      setEditMode(false);
-      setActiveSetting(null);
-    } else {
-      setEditMode(true);
-      selectItem(null); // deselect any item
-    }
   };
 
   const handleSearchOpen = () => {
@@ -64,10 +57,12 @@ export const PosScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
           onSearchOpen={handleSearchOpen}
           onSearchClose={handleSearchClose}
           tableNumber={tableNumber}
+          waiter={currentOrder?.waiter || 'Иванов'}
           guestCount={guests.length}
           isQuickCheck={isQuickCheck}
-          editMode={editMode}
-          onToggleEditMode={toggleEditMode}
+          onTablePress={() => setTablePickerVisible(true)}
+          onWaiterPress={() => setWaiterPickerVisible(true)}
+          onCommentPress={() => setCommentVisible(true)}
         />
 
         {/* ═══ MAIN CONTENT ═══ */}
@@ -86,23 +81,6 @@ export const PosScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
                 onSearchChange={setSearchQuery}
               />
             </View>
-          ) : editMode ? (
-            <>
-              {/* ── Middle: Order settings menu ── */}
-              <View style={styles.midCol}>
-                <OrderSettingsMenu
-                  activeSetting={activeSetting}
-                  onSelectSetting={setActiveSetting}
-                />
-              </View>
-
-              <View style={{ width: COL_GAP }} />
-
-              {/* ── Right: Setting detail ── */}
-              <View style={styles.rightCol}>
-                <OrderSettingsDetail setting={activeSetting} />
-              </View>
-            </>
           ) : (
             <>
               {/* ── Middle: Categories or Actions ── */}
@@ -174,6 +152,19 @@ export const PosScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
           )}
         </View>
       </View>
+
+      <TablePickerModal
+        visible={tablePickerVisible}
+        onClose={() => setTablePickerVisible(false)}
+      />
+      <WaiterPickerModal
+        visible={waiterPickerVisible}
+        onClose={() => setWaiterPickerVisible(false)}
+      />
+      <CommentModal
+        visible={commentVisible}
+        onClose={() => setCommentVisible(false)}
+      />
     </SafeAreaView>
   );
 };

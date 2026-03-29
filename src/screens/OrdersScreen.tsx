@@ -1,10 +1,16 @@
 import React, { useState, useCallback } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, SafeAreaView, StatusBar, useWindowDimensions } from 'react-native';
-import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { View, StyleSheet, Text, TextInput, TouchableOpacity, SafeAreaView, StatusBar, useWindowDimensions } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { theme } from '../theme/colors';
+import { SearchIcon, NotificationIcon } from '../components/Icons';
 import { OrderCard } from '../components/OrderCard';
 import { FloorPlan } from '../components/FloorPlan';
 import { BottomTabBar } from '../components/BottomTabBar';
+import { FunctionsModal } from '../components/FunctionsModal';
+import { SalesReportModal } from '../components/SalesReportModal';
+import { ShiftInfoModal } from '../components/ShiftInfoModal';
+import { CloseShiftModal } from '../components/CloseShiftModal';
+import { useShiftStore } from '../store/shiftStore';
 import { useOrderStore } from '../store/orderStore';
 import { FloorTable } from '../mocks/floorPlan';
 import { Order } from '../types';
@@ -18,7 +24,7 @@ const GAP = 8;
 const PADDING = 8;
 
 const getRows = (height: number): number => {
-  if (height < 900) return 4;
+  if (height < 1000) return 4;
   if (height < 1200) return 5;
   return 6;
 };
@@ -30,6 +36,13 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const createOrderForTable = useOrderStore((s) => s.createOrderForTable);
   const createQuickCheck = useOrderStore((s) => s.createQuickCheck);
   const openOrder = useOrderStore((s) => s.openOrder);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
+  const [shiftInfoVisible, setShiftInfoVisible] = useState(false);
+  const [closeShiftVisible, setCloseShiftVisible] = useState(false);
+  const [searchActive, setSearchActive] = useState(false);
+  const closeShift = useShiftStore((s) => s.closeShift);
+  const [searchQuery, setSearchQuery] = useState('');
   const isOrders = activeTab === 'orders';
 
   // ── Dynamic rows based on screen height ──
@@ -45,12 +58,25 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const cardHeight = (gridHeight - GAP * (ROWS - 1)) / ROWS;
   const scale = Math.max(0.8, Math.min(1.5, cardHeight / 120));
 
+  // ── Filter orders by search ──
+  const filteredOrders = searchQuery.trim()
+    ? orders.filter((o) => {
+        const q = searchQuery.toLowerCase();
+        return (
+          o.number.toLowerCase().includes(q) ||
+          (o.tableNumber && o.tableNumber.toLowerCase().includes(q)) ||
+          o.waiter.toLowerCase().includes(q) ||
+          (o.zone && o.zone.toLowerCase().includes(q))
+        );
+      })
+    : orders;
+
   // ── Pagination (orders only) ──
-  const totalItems = orders.length;
+  const totalItems = filteredOrders.length;
   const needsPagination = totalItems > ORDER_SLOTS;
   const slotsThisView = needsPagination ? ORDER_SLOTS - 1 : ORDER_SLOTS;
   const totalPages = needsPagination ? Math.ceil(totalItems / slotsThisView) : 1;
-  const pageItems = orders.slice(page * slotsThisView, page * slotsThisView + slotsThisView);
+  const pageItems = filteredOrders.slice(page * slotsThisView, page * slotsThisView + slotsThisView);
 
   // ── "Новый заказ" → switch to tables tab to pick a table ──
   const handleNewOrder = () => {
@@ -106,29 +132,52 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         <View style={[styles.headerRow, { marginHorizontal: PADDING, marginBottom: GAP }]}>
           <View style={[styles.filterBox, { flex: 2, marginRight: GAP }]}>
             <TouchableOpacity style={styles.filterArrow}>
-              <Feather name="chevron-left" size={22 * scale} color={theme.colors.tabActive} />
+              <Feather name="chevron-left" size={22 * scale} color={theme.colors.textPrimary} />
             </TouchableOpacity>
             <View style={styles.filterCenter}>
               <Text style={[styles.filterLabel, { fontSize: 15 * scale }]}>{isOrders ? 'Все официанты' : 'Все залы'}</Text>
             </View>
             <TouchableOpacity style={styles.filterArrow}>
-              <Feather name="chevron-right" size={22 * scale} color={theme.colors.tabActive} />
+              <Feather name="chevron-right" size={22 * scale} color={theme.colors.textPrimary} />
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={[styles.toggleBtn, { flex: 1, marginRight: GAP }]}>
-            <Text style={[styles.toggleLabel, { fontSize: 14 * scale }]}>{isOrders ? 'По официантам' : 'По залам'}</Text>
+          <TouchableOpacity
+            style={[styles.reportBtn, { flex: 1, marginRight: GAP }]}
+            onPress={() => setReportVisible(true)}
+          >
+            <Text style={[styles.reportLabel, { fontSize: 14 * scale }]}>Отчет</Text>
           </TouchableOpacity>
 
-          <View style={[styles.headerRight, { flex: 1 }]}>
-            <TouchableOpacity style={[styles.bellBtn, { marginRight: GAP }]}>
-              <MaterialCommunityIcons name="bell" size={20 * scale} color="#FF9800" />
-              <Text style={[styles.bellBadge, { fontSize: 14 * scale }]}>2</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.searchBtn}>
-              <Feather name="search" size={20 * scale} color={theme.colors.tabActive} />
-            </TouchableOpacity>
-          </View>
+          {searchActive ? (
+            <View style={[styles.searchInputWrap, { flex: 2 }]}>
+              <SearchIcon size={20 * scale} color={theme.colors.textSecondary} />
+              <TextInput
+                style={[styles.searchInput, { fontSize: 15 * scale }]}
+                placeholder="Номер, стол, официант..."
+                placeholderTextColor={theme.colors.textSecondary}
+                value={searchQuery}
+                onChangeText={(text) => { setSearchQuery(text); setPage(0); }}
+                autoFocus
+              />
+              <TouchableOpacity
+                onPress={() => { setSearchActive(false); setSearchQuery(''); setPage(0); }}
+                style={styles.searchCloseBtn}
+              >
+                <Feather name="x" size={20 * scale} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={[styles.headerRight, { flex: 1 }]}>
+              <TouchableOpacity style={[styles.bellBtn, { marginRight: GAP }]}>
+                <NotificationIcon size={28 * scale} color="#FF9800" />
+                <Text style={[styles.bellBadge, { fontSize: 14 * scale }]}>2</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.searchBtn} onPress={() => setSearchActive(true)}>
+                <SearchIcon size={28 * scale} color={theme.colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         {/* ═══ CONTENT ═══ */}
@@ -194,7 +243,32 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         )}
 
         {/* ═══ BOTTOM TAB BAR ═══ */}
-        <BottomTabBar activeTab={activeTab} onTabChange={setActiveTab} scale={scale} />
+        <BottomTabBar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          onMenuPress={() => setMenuVisible(true)}
+          onLockPress={() => navigation.navigate('Lock')}
+          scale={scale}
+        />
+
+        <FunctionsModal
+          visible={menuVisible}
+          onClose={() => setMenuVisible(false)}
+          onOpenReport={() => setReportVisible(true)}
+          onOpenShiftInfo={() => setShiftInfoVisible(true)}
+          onCloseShift={() => setCloseShiftVisible(true)}
+        />
+        <SalesReportModal visible={reportVisible} onClose={() => setReportVisible(false)} />
+        <ShiftInfoModal visible={shiftInfoVisible} onClose={() => setShiftInfoVisible(false)} />
+        <CloseShiftModal
+          visible={closeShiftVisible}
+          onClose={() => setCloseShiftVisible(false)}
+          onConfirmClose={() => {
+            closeShift();
+            setCloseShiftVisible(false);
+            navigation.replace('OpenShift');
+          }}
+        />
       </View>
     </SafeAreaView>
   );
@@ -212,7 +286,7 @@ const styles = StyleSheet.create({
   },
   filterBox: {
     flexDirection: 'row',
-    backgroundColor: '#E8EAF6',
+    backgroundColor: '#333',
     borderRadius: theme.borderRadius,
     overflow: 'hidden',
   },
@@ -223,21 +297,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderLeftWidth: 1,
     borderRightWidth: 1,
-    borderColor: 'rgba(91,79,232,0.15)',
+    borderColor: 'rgba(255,255,255,0.1)',
   },
-  filterLabel: { color: theme.colors.tabActive, fontSize: 15, fontWeight: '600' },
-  toggleBtn: {
-    backgroundColor: '#E8EAF6',
+  filterLabel: { color: theme.colors.textPrimary, fontSize: 15, fontWeight: '600' },
+  reportBtn: {
+    backgroundColor: '#333',
     borderRadius: theme.borderRadius,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  toggleLabel: { color: theme.colors.tabActive, fontSize: 14, fontWeight: '600' },
+  reportLabel: { color: theme.colors.textPrimary, fontSize: 14, fontWeight: '600' },
+  searchInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#333',
+    borderRadius: theme.borderRadius,
+    paddingHorizontal: 12,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    color: theme.colors.textPrimary,
+    fontSize: 15,
+    paddingVertical: 0,
+    outlineStyle: 'none',
+  } as any,
+  searchCloseBtn: {
+    padding: 4,
+  },
   headerRight: { flexDirection: 'row' },
   bellBtn: {
     flex: 1,
     flexDirection: 'row',
-    backgroundColor: '#FFF3E0',
+    backgroundColor: '#333',
     borderRadius: theme.borderRadius,
     justifyContent: 'center',
     alignItems: 'center',
@@ -246,7 +338,7 @@ const styles = StyleSheet.create({
   bellBadge: { color: '#FF9800', fontSize: 14, fontWeight: 'bold' },
   searchBtn: {
     flex: 1,
-    backgroundColor: '#E8EAF6',
+    backgroundColor: '#333',
     borderRadius: theme.borderRadius,
     justifyContent: 'center',
     alignItems: 'center',
@@ -275,11 +367,11 @@ const styles = StyleSheet.create({
   paginationCell: {
     flex: 1,
     flexDirection: 'row',
-    backgroundColor: '#E8EAF6',
+    backgroundColor: '#333',
     borderRadius: theme.borderRadius,
     overflow: 'hidden',
   },
   pageHalf: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   pageDisabled: { opacity: 0.4 },
-  pageDivider: { width: 1, backgroundColor: 'rgba(91,79,232,0.15)' },
+  pageDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
 });

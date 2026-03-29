@@ -1,0 +1,109 @@
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import { theme } from '../theme/colors';
+import { useOrderStore } from '../store/orderStore';
+
+const WAITERS = ['Иванов', 'Петров', 'Сидоров', 'Козлов'];
+
+interface Props {
+  visible: boolean;
+  onClose: () => void;
+}
+
+export const WaiterPickerModal: React.FC<Props> = ({ visible, onClose }) => {
+  const currentOrder = useOrderStore((s) => s.orders.find(o => o.id === s.currentOrderId));
+  const currentWaiter = currentOrder?.waiter || '';
+
+  const handleSelect = (waiter: string) => {
+    useOrderStore.setState((state) => ({
+      orders: state.orders.map(o =>
+        o.id === state.currentOrderId ? { ...o, waiter } : o
+      ),
+    }));
+    onClose();
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={styles.overlay}>
+        <View style={styles.modal}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Официант</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Feather name="x" size={22} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.body}>
+            {WAITERS.map((waiter) => (
+              <TouchableOpacity
+                key={waiter}
+                style={[styles.waiterBtn, currentWaiter === waiter && styles.waiterBtnActive]}
+                onPress={() => handleSelect(waiter)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.waiterText, currentWaiter === waiter && styles.waiterTextActive]}>
+                  {waiter}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modal: {
+    width: '30%',
+    maxWidth: 360,
+    minWidth: 280,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.colors.textPrimary,
+  },
+  body: {
+    padding: 20,
+    paddingTop: 0,
+    gap: 6,
+  },
+  waiterBtn: {
+    height: 52,
+    backgroundColor: theme.colors.surfaceLight,
+    borderRadius: 10,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  waiterBtnActive: {
+    backgroundColor: theme.colors.tabActive,
+  },
+  waiterText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: theme.colors.textPrimary,
+  },
+  waiterTextActive: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+});

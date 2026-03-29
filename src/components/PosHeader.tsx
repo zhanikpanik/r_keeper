@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
-import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { theme } from '../theme/colors';
+import { SearchIcon, NotificationIcon } from './Icons';
 
 interface Props {
   onBack: () => void;
@@ -11,79 +12,113 @@ interface Props {
   onSearchOpen: () => void;
   onSearchClose: () => void;
   tableNumber: string;
+  waiter: string;
   guestCount: number;
   isQuickCheck?: boolean;
-  editMode?: boolean;
-  onToggleEditMode?: () => void;
+  onTablePress?: () => void;
+  onWaiterPress?: () => void;
+  onCommentPress?: () => void;
 }
 
 export const PosHeader: React.FC<Props> = ({
   onBack, searchMode, searchQuery, onSearchChange, onSearchOpen, onSearchClose,
-  tableNumber, guestCount, isQuickCheck, editMode, onToggleEditMode,
+  tableNumber, waiter, guestCount, isQuickCheck,
+  onTablePress, onWaiterPress, onCommentPress,
 }) => {
+  const time = `${new Date().getHours().toString().padStart(2, '0')}:${new Date().getMinutes().toString().padStart(2, '0')}`;
+
   if (searchMode) {
     return (
       <View style={styles.container}>
-        <TouchableOpacity style={styles.backButton} onPress={onSearchClose}>
-          <Text style={styles.backText}>Назад</Text>
-        </TouchableOpacity>
+        <View style={styles.leftSection}>
+          <TouchableOpacity style={styles.backButton} onPress={onSearchClose}>
+            <Text style={styles.backText}>Назад</Text>
+          </TouchableOpacity>
 
-        <View style={styles.searchContext}>
-          <Text style={styles.contextTitle}>Редактировать заказ</Text>
+          {!isQuickCheck && (
+            <>
+              <TouchableOpacity style={[styles.chip, { marginLeft: 6 }]} onPress={onTablePress} activeOpacity={0.7}>
+                <Text style={styles.chipLabel}>Стол</Text>
+                <Text style={styles.chipValue}>{tableNumber || '—'}</Text>
+                <Feather name="chevron-down" size={14} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={[styles.chip, { marginLeft: 6 }]} onPress={onWaiterPress} activeOpacity={0.7}>
+                <Text style={styles.chipLabel}>Официант</Text>
+                <Text style={styles.chipValue}>{waiter}</Text>
+                <Feather name="chevron-down" size={14} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </>
+          )}
         </View>
 
-        <View style={styles.searchInputWrap}>
-          <TextInput
-            style={styles.searchInput}
-            value={searchQuery}
-            onChangeText={onSearchChange}
-            placeholder=""
-            placeholderTextColor={theme.colors.textSecondary}
-            autoFocus
-          />
+        <View style={styles.searchRightSection}>
+          <View style={styles.searchInputWrap}>
+            <TextInput
+              style={styles.searchInput}
+              value={searchQuery}
+              onChangeText={onSearchChange}
+              placeholder=""
+              placeholderTextColor={theme.colors.textSecondary}
+              autoFocus
+            />
+          </View>
+
+          <TouchableOpacity style={styles.clearBtn} onPress={() => onSearchChange('')}>
+            <Text style={styles.clearText}>Очистить</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.iconButton} onPress={onSearchClose}>
+            <Feather name="x" size={22} color={theme.colors.textPrimary} />
+          </TouchableOpacity>
         </View>
-
-        <TouchableOpacity style={styles.clearBtn} onPress={() => onSearchChange('')}>
-          <Text style={styles.clearText}>Очистить</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.iconButton} onPress={onSearchClose}>
-          <Feather name="x" size={22} color={theme.colors.textPrimary} />
-        </TouchableOpacity>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.backButton} onPress={onBack}>
-        <Text style={styles.backText}>Назад</Text>
-      </TouchableOpacity>
+      <View style={styles.leftSection}>
+        <TouchableOpacity style={styles.backButton} onPress={onBack}>
+          <Text style={styles.backText}>Назад</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity style={[styles.middleContext, editMode && styles.middleContextActive]} onPress={onToggleEditMode} activeOpacity={0.7}>
-        <View style={styles.contextTopRow}>
-          <Text style={[styles.contextTitle, editMode && styles.contextTitleActive]}>{editMode ? 'Настройки заказа' : 'Редактировать заказ'}</Text>
-          <Text style={styles.contextTime}>
-            {new Date().getHours().toString().padStart(2, '0')}:{new Date().getMinutes().toString().padStart(2, '0')}
-          </Text>
-        </View>
-        <Text style={styles.contextDetails}>
-          {isQuickCheck
-            ? `Быстрый чек   Гостей: ${guestCount}`
-            : `Стол: ${tableNumber || '—'}   Гостей: ${guestCount}   Основной   Общий`
-          }
-        </Text>
-      </TouchableOpacity>
+        {isQuickCheck ? (
+          <View style={[styles.chipStatic, { marginLeft: 6 }]}>
+            <Text style={styles.chipText}>Быстрый чек</Text>
+          </View>
+        ) : (
+          <>
+            <TouchableOpacity style={[styles.chip, { marginLeft: 6 }]} onPress={onTablePress} activeOpacity={0.7}>
+              <Text style={styles.chipLabel}>Стол</Text>
+              <Text style={styles.chipValue}>{tableNumber || '—'}</Text>
+              <Feather name="chevron-down" size={14} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
 
+            <TouchableOpacity style={[styles.chip, { marginLeft: 6 }]} onPress={onWaiterPress} activeOpacity={0.7}>
+              <Text style={styles.chipLabel}>Официант</Text>
+              <Text style={styles.chipValue}>{waiter}</Text>
+              <Feather name="chevron-down" size={14} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+
+      {/* Right actions */}
       <View style={styles.rightActions}>
+        <TouchableOpacity style={styles.iconButton} onPress={onCommentPress}>
+          <Feather name="message-square" size={20} color={theme.colors.textPrimary} />
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.iconButton}>
-          <MaterialCommunityIcons name="bell" size={20} color={theme.colors.textPrimary} />
-          <Text style={styles.badgeText}>2</Text>
+          <NotificationIcon size={22} color={theme.colors.textPrimary} />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.iconButton} onPress={onSearchOpen}>
-          <Feather name="search" size={20} color={theme.colors.textPrimary} />
+          <SearchIcon size={22} color={theme.colors.textPrimary} />
         </TouchableOpacity>
+
+        <Text style={styles.timeText}>{time}</Text>
       </View>
     </View>
   );
@@ -95,7 +130,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 8,
     alignItems: 'center',
-    justifyContent: 'space-between',
     gap: 8,
   },
   backButton: {
@@ -111,56 +145,56 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: 'bold',
   },
-  middleContext: {
-    flex: 1,
-    height: 44,
-    backgroundColor: theme.colors.surfaceLight,
-    borderRadius: theme.borderRadius,
-    paddingHorizontal: 16,
-    justifyContent: 'center',
-  },
-  contextTopRow: {
+
+  // Left section — matches order panel width
+  leftSection: {
+    flex: 0.35,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  contextTitle: {
-    color: theme.colors.textPrimary,
-    fontSize: 14,
-    fontWeight: 'bold',
+  chip: {
+    height: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surfaceLight,
+    borderRadius: theme.borderRadius,
+    paddingHorizontal: 12,
+    gap: 6,
   },
-  middleContextActive: {
-    backgroundColor: theme.colors.actionMenuPurple,
-  },
-  contextTitleActive: {
-    color: '#fff',
-  },
-  contextTime: {
-    color: theme.colors.textSecondary,
-    fontSize: 14,
-  },
-  contextDetails: {
+  chipLabel: {
     color: theme.colors.textSecondary,
     fontSize: 12,
-    marginTop: 4,
   },
-  rightActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  actionButton: {
-    height: 44,
-    paddingHorizontal: 16,
-    backgroundColor: theme.colors.surfaceLight,
-    borderRadius: theme.borderRadius,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  actionText: {
+  chipValue: {
     color: theme.colors.textPrimary,
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '600',
+  },
+  chipStatic: {
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surfaceLight,
+    borderRadius: theme.borderRadius,
+    paddingHorizontal: 12,
+  },
+  chipText: {
+    color: theme.colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  chipTextSub: {
+    color: theme.colors.textSecondary,
+    fontSize: 13,
+  },
+
+  // Right actions
+  rightActions: {
+    flex: 0.65,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 8,
   },
   iconButton: {
     width: 44,
@@ -170,20 +204,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  badgeText: {
-    position: 'absolute',
-    top: 10,
-    right: 8,
-    color: theme.colors.textPrimary,
-    fontSize: 10,
-    fontWeight: 'bold',
+  timeText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+    marginLeft: 4,
   },
+
   // Search mode
-  searchContext: {
-    backgroundColor: theme.colors.surfaceLight,
-    borderRadius: theme.borderRadius,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+  searchRightSection: {
+    flex: 0.65,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginLeft: 8,
   },
   searchInputWrap: {
     flex: 1,
@@ -198,8 +231,8 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
     fontSize: 16,
     height: '100%',
-
-  },
+    outlineStyle: 'none',
+  } as any,
   clearBtn: {
     height: 44,
     paddingHorizontal: 16,

@@ -67,3 +67,20 @@ export interface Table {
 }
 
 export type ActiveAction = 'modifiers' | 'quantity' | 'guest' | 'course' | 'combo' | 'move' | 'delete' | null;
+
+export interface Shift {
+  id: string;
+  cashier: string;
+  openedAt: Date;
+  closedAt?: Date;
+  startingCash: number;
+  // Running totals (updated on each payment)
+  totalOrders: number;
+  totalRevenue: number;
+  cashPayments: number;
+  cashTotal: number;
+  cardPayments: number;
+  cardTotal: number;
+  otherPayments: number;
+  otherTotal: number;
+}

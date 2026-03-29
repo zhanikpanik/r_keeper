@@ -2,19 +2,22 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../theme/colors';
+import { LockIcon } from './Icons';
 
 interface Props {
   activeTab: 'orders' | 'tables';
   onTabChange: (tab: 'orders' | 'tables') => void;
+  onMenuPress?: () => void;
+  onLockPress?: () => void;
   scale?: number;
 }
 
-export const BottomTabBar: React.FC<Props> = ({ activeTab, onTabChange, scale = 1 }) => {
+export const BottomTabBar: React.FC<Props> = ({ activeTab, onTabChange, onMenuPress, onLockPress, scale = 1 }) => {
   return (
     <View style={styles.wrapper}>
       <View style={styles.container}>
         {/* Menu Button */}
-        <TouchableOpacity style={styles.sideButton}>
+        <TouchableOpacity style={styles.sideButton} onPress={onMenuPress}>
           <Feather name="menu" size={24 * scale} color={theme.colors.textPrimary} />
         </TouchableOpacity>
         
@@ -42,8 +45,8 @@ export const BottomTabBar: React.FC<Props> = ({ activeTab, onTabChange, scale = 
         </View>
         
         {/* Lock Button */}
-        <TouchableOpacity style={styles.sideButton}>
-          <Feather name="lock" size={22 * scale} color={theme.colors.textPrimary} />
+        <TouchableOpacity style={styles.sideButton} onPress={onLockPress}>
+          <LockIcon size={30 * scale} color={theme.colors.textPrimary} />
         </TouchableOpacity>
       </View>
     </View>

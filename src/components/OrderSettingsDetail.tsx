@@ -135,19 +135,15 @@ export const OrderSettingsDetail: React.FC<Props> = ({ setting }) => {
           <TextInput
             style={styles.commentInput}
             value={comment}
-            onChangeText={setComment}
+            onChangeText={(text) => {
+              setComment(text);
+              updateOrder({ comment: text });
+            }}
             placeholder="Введите комментарий..."
             placeholderTextColor={theme.colors.textSecondary}
             multiline
-            autoFocus
           />
-          <TouchableOpacity
-            style={styles.commentSave}
-            onPress={() => updateOrder({ comment })}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.commentSaveText}>Сохранить</Text>
-          </TouchableOpacity>
+
         </View>
       </View>
     );
@@ -212,29 +208,18 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   commentWrap: {
-    flex: 1,
     padding: 8,
   },
   commentInput: {
-    flex: 1,
+    height: 100,
     backgroundColor: theme.colors.surfaceLight,
     borderRadius: theme.borderRadius,
     padding: 16,
     color: theme.colors.textPrimary,
     fontSize: 16,
     textAlignVertical: 'top',
-  },
-  commentSave: {
-    height: 48,
-    backgroundColor: '#00C853',
-    borderRadius: theme.borderRadius,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  commentSaveText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+    outlineStyle: 'none',
+    borderWidth: 0,
+  } as any,
+
 });

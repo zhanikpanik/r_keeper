@@ -63,4 +63,5 @@ const styles = StyleSheet.create({
     color: theme.colors.orderItemActiveText,
     fontWeight: 'bold',
   },
+
 });
