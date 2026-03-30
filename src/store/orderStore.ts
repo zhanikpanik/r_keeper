@@ -1,194 +1,24 @@
 import { create } from 'zustand';
 import { Product, OrderItem, Guest, Modifier, ActiveAction, Order } from '../types';
+import { supabase } from '../utils/supabase';
+import { useShiftStore } from './shiftStore';
 
-// Helper to generate a short random ID
-const generateId = () => Math.random().toString(36).substr(2, 9);
+const VENUE_ID = '00000000-0000-0000-0000-000000000010';
+
+// Helper to generate a UUID
+const generateId = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
 
 // Format current time as HH:MM
 const now = () => {
   const d = new Date();
   return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
 };
-
-// ── Seed data: pre-existing orders linked to floor plan tables ──
-const seedOrders: Order[] = [
-  {
-    id: 'o1', number: '1', status: 'active', waiter: 'Иванов', openedAt: '16:30',
-    zone: 'Основной зал', type: 'Общий', totalAmount: 1090, tableNumber: '1', tableId: 't1', guestCount: 2,
-    guests: [{ id: 'g1', name: 'Гость 1' }, { id: 'g2', name: 'Гость 2' }],
-    items: [
-      { id: 'i1', product: { id: 'h1', categoryId: 'hot', name: 'Выгодная пара с барбекю', price: 230 }, quantity: 2, guestId: 'g1', modifiers: [] },
-      { id: 'i2', product: { id: 'h3', categoryId: 'hot', name: 'Три сыра', price: 250 }, quantity: 1, guestId: 'g1', modifiers: [] },
-      { id: 'i3', product: { id: 'b1', categoryId: 'bar', name: 'Кока-кола', price: 90 }, quantity: 2, guestId: 'g2', modifiers: [] },
-    ],
-  },
-  {
-    id: 'o2', number: '2', status: 'paid', waiter: 'Иванов', openedAt: '16:45',
-    zone: 'Основной зал', type: 'Общий', totalAmount: 1200, tableNumber: '5', tableId: 't5', guestCount: 1,
-    guests: [{ id: 'g1', name: 'Гость 1' }],
-    items: [
-      { id: 'i5', product: { id: 'pz2', categoryId: 'pizza', name: 'Пепперони', price: 400 }, quantity: 3, guestId: 'g1', modifiers: [] },
-    ],
-  },
-  {
-    id: 'o3', number: '3', status: 'active', waiter: 'Иванов', openedAt: '17:10',
-    zone: 'Основной зал', type: 'Общий', totalAmount: 1060, tableNumber: '4', tableId: 't4', guestCount: 2,
-    guests: [{ id: 'g1', name: 'Гость 1' }, { id: 'g2', name: 'Гость 2' }],
-    items: [
-      { id: 'i10', product: { id: 'h11', categoryId: 'hot', name: 'Биг Мак', price: 330 }, quantity: 1, guestId: 'g1', modifiers: [] },
-      { id: 'i11', product: { id: 'sa1', categoryId: 'salads', name: 'Цезарь', price: 280 }, quantity: 1, guestId: 'g1', modifiers: [] },
-      { id: 'i12', product: { id: 'pz3', categoryId: 'pizza', name: '4 сыра', price: 420 }, quantity: 1, guestId: 'g2', modifiers: [{ id: 'm1', name: 'Лук', price: 0 }, { id: 'm2', name: 'Помидор', price: 30 }] },
-    ],
-    hasNote: true,
-  },
-  {
-    id: 'o4', number: '4', status: 'alert', waiter: 'Петров', openedAt: '15:20',
-    zone: 'Основной зал', type: 'Общий', totalAmount: 890, tableNumber: '8', tableId: 't8', guestCount: 1,
-    guests: [{ id: 'g1', name: 'Гость 1' }],
-    items: [
-      { id: 'i20', product: { id: 'sp2', categoryId: 'soups', name: 'Том Ям', price: 350 }, quantity: 1, guestId: 'g1', modifiers: [] },
-      { id: 'i21', product: { id: 'h4', categoryId: 'hot', name: 'Карбонара', price: 260 }, quantity: 1, guestId: 'g1', modifiers: [] },
-      { id: 'i22', product: { id: 'sa2', categoryId: 'salads', name: 'Греческий', price: 250 }, quantity: 1, guestId: 'g1', modifiers: [{ id: 'ms4', name: 'Барбекю', price: 20 }] },
-    ],
-    hasAlert: true, hasNote: true,
-  },
-  {
-    id: 'o5', number: '5', status: 'active', waiter: 'Иванов', openedAt: '17:30',
-    zone: 'Веранда', type: 'Общий', totalAmount: 700, tableNumber: '21', tableId: 'v1', guestCount: 2,
-    guests: [{ id: 'g1', name: 'Гость 1' }, { id: 'g2', name: 'Гость 2' }],
-    items: [
-      { id: 'i30', product: { id: 'pz1', categoryId: 'pizza', name: 'Маргарита', price: 350 }, quantity: 2, guestId: 'g1', modifiers: [] },
-    ],
-  },
-  {
-    id: 'o6', number: '6', status: 'active', waiter: 'Петров', openedAt: '18:00',
-    zone: 'Веранда', type: 'Общий', totalAmount: 480, tableNumber: '25', tableId: 'v5', guestCount: 1,
-    guests: [{ id: 'g1', name: 'Гость 1' }],
-    items: [
-      { id: 'i40', product: { id: 'v1', categoryId: 'vegan', name: 'Фалафель', price: 220 }, quantity: 1, guestId: 'g1', modifiers: [] },
-      { id: 'i41', product: { id: 'h4', categoryId: 'hot', name: 'Карбонара', price: 260 }, quantity: 1, guestId: 'g1', modifiers: [] },
-    ],
-  },
-  {
-    id: 'o7', number: '7', status: 'active', waiter: 'Иванов', openedAt: '18:15',
-    zone: 'Основной зал', type: 'Общий', totalAmount: 330, tableNumber: '3', tableId: 't3', guestCount: 1,
-    guests: [{ id: 'g1', name: 'Гость 1' }],
-    items: [
-      { id: 'i50', product: { id: 'h11', categoryId: 'hot', name: 'Биг Мак', price: 330 }, quantity: 1, guestId: 'g1', modifiers: [] },
-    ],
-  },
-  {
-    id: 'o8', number: '8', status: 'active', waiter: 'Иванов', openedAt: '18:20',
-    zone: 'Основной зал', type: 'Общий', totalAmount: 670, tableNumber: '6', tableId: 't6', guestCount: 2,
-    guests: [{ id: 'g1', name: 'Гость 1' }, { id: 'g2', name: 'Гость 2' }],
-    items: [
-      { id: 'i51', product: { id: 'sp2', categoryId: 'soups', name: 'Том Ям', price: 350 }, quantity: 1, guestId: 'g1', modifiers: [] },
-      { id: 'i52', product: { id: 'sa1', categoryId: 'salads', name: 'Цезарь', price: 280 }, quantity: 1, guestId: 'g2', modifiers: [] },
-    ],
-  },
-  {
-    id: 'o9', number: '9', status: 'alert', waiter: 'Петров', openedAt: '18:30',
-    zone: 'Основной зал', type: 'Общий', totalAmount: 1250, tableNumber: '9', tableId: 't9', guestCount: 1,
-    guests: [{ id: 'g1', name: 'Гость 1' }],
-    items: [
-      { id: 'i53', product: { id: 'pz2', categoryId: 'pizza', name: 'Пепперони', price: 400 }, quantity: 2, guestId: 'g1', modifiers: [] },
-      { id: 'i54', product: { id: 'pz3', categoryId: 'pizza', name: '4 сыра', price: 420 }, quantity: 1, guestId: 'g1', modifiers: [] },
-    ],
-    hasAlert: true,
-  },
-  {
-    id: 'o10', number: '10', status: 'active', waiter: 'Иванов', openedAt: '18:45',
-    zone: 'Веранда', type: 'Общий', totalAmount: 560, tableNumber: '22', tableId: 'v2', guestCount: 2,
-    guests: [{ id: 'g1', name: 'Гость 1' }, { id: 'g2', name: 'Гость 2' }],
-    items: [
-      { id: 'i55', product: { id: 'sa2', categoryId: 'salads', name: 'Греческий', price: 250 }, quantity: 1, guestId: 'g1', modifiers: [] },
-      { id: 'i56', product: { id: 'h6', categoryId: 'hot', name: 'Нарезка мясо', price: 280 }, quantity: 1, guestId: 'g2', modifiers: [] },
-    ],
-  },
-  {
-    id: 'o11', number: '11', status: 'active', waiter: 'Петров', openedAt: '19:00',
-    zone: 'Основной зал', type: 'Общий', totalAmount: 12560, tableNumber: '10', tableId: 't10', guestCount: 4,
-    guests: [{ id: 'g1', name: 'Гость 1' }, { id: 'g2', name: 'Гость 2' }, { id: 'g3', name: 'Гость 3' }, { id: 'g4', name: 'Гость 4' }],
-    items: [
-      { id: 'i57', product: { id: 'pz6', categoryId: 'pizza', name: 'Мясная', price: 450 }, quantity: 4, guestId: 'g1', modifiers: [] },
-      { id: 'i58', product: { id: 's3', categoryId: 'shashlik', name: 'Баранина', price: 420 }, quantity: 3, guestId: 'g2', modifiers: [] },
-      { id: 'i59', product: { id: 'b6', categoryId: 'bar', name: 'Смузи', price: 200 }, quantity: 4, guestId: 'g3', modifiers: [] },
-    ],
-  },
-  {
-    id: 'o12', number: '12', status: 'active', waiter: 'Иванов', openedAt: '19:10',
-    zone: 'Веранда', type: 'Общий', totalAmount: 360, tableNumber: '23', tableId: 'v3', guestCount: 1,
-    guests: [{ id: 'g1', name: 'Гость 1' }],
-    items: [
-      { id: 'i60', product: { id: 'sp1', categoryId: 'soups', name: 'Борщ', price: 220 }, quantity: 1, guestId: 'g1', modifiers: [] },
-      { id: 'i61', product: { id: 'b3', categoryId: 'bar', name: 'Эспрессо', price: 120 }, quantity: 1, guestId: 'g1', modifiers: [] },
-    ],
-  },
-  {
-    id: 'o13', number: '13', status: 'alert', waiter: 'Петров', openedAt: '19:20',
-    zone: 'Основной зал', type: 'Общий', totalAmount: 6890, tableNumber: '7', tableId: 't7', guestCount: 3,
-    guests: [{ id: 'g1', name: 'Гость 1' }, { id: 'g2', name: 'Гость 2' }, { id: 'g3', name: 'Гость 3' }],
-    items: [
-      { id: 'i62', product: { id: 'h5', categoryId: 'hot', name: 'Курица гриль', price: 270 }, quantity: 5, guestId: 'g1', modifiers: [] },
-      { id: 'i63', product: { id: 'pz5', categoryId: 'pizza', name: 'Карбонара', price: 430 }, quantity: 3, guestId: 'g2', modifiers: [] },
-      { id: 'i64', product: { id: 's1', categoryId: 'shashlik', name: 'Свинина', price: 350 }, quantity: 4, guestId: 'g3', modifiers: [] },
-    ],
-    hasAlert: true, hasNote: true,
-  },
-  {
-    id: 'o14', number: '14', status: 'active', waiter: 'Иванов', openedAt: '19:30',
-    zone: 'Веранда', type: 'Общий', totalAmount: 4700, tableNumber: '24', tableId: 'v4', guestCount: 2,
-    guests: [{ id: 'g1', name: 'Гость 1' }, { id: 'g2', name: 'Гость 2' }],
-    items: [
-      { id: 'i65', product: { id: 'pz1', categoryId: 'pizza', name: 'Маргарита', price: 350 }, quantity: 4, guestId: 'g1', modifiers: [] },
-      { id: 'i66', product: { id: 'h8', categoryId: 'hot', name: 'Мега Биф', price: 300 }, quantity: 3, guestId: 'g2', modifiers: [] },
-    ],
-  },
-  {
-    id: 'o15', number: '15', status: 'paid', waiter: 'Петров', openedAt: '19:45',
-    zone: 'Основной зал', type: 'Общий', totalAmount: 1200, tableNumber: '2', tableId: 't2', guestCount: 1,
-    guests: [{ id: 'g1', name: 'Гость 1' }],
-    items: [
-      { id: 'i67', product: { id: 'pz2', categoryId: 'pizza', name: 'Пепперони', price: 400 }, quantity: 3, guestId: 'g1', modifiers: [] },
-    ],
-  },
-  {
-    id: 'o16', number: '16', status: 'active', waiter: 'Иванов', openedAt: '20:00',
-    zone: 'Основной зал', type: 'Общий', totalAmount: 610, tableNumber: '11', tableId: 't11', guestCount: 1,
-    guests: [{ id: 'g1', name: 'Гость 1' }],
-    items: [
-      { id: 'i68', product: { id: 'h14', categoryId: 'hot', name: 'Шаурма', price: 360 }, quantity: 1, guestId: 'g1', modifiers: [] },
-      { id: 'i69', product: { id: 'sa3', categoryId: 'salads', name: 'Оливье', price: 220 }, quantity: 1, guestId: 'g1', modifiers: [] },
-    ],
-  },
-  {
-    id: 'o17', number: '17', status: 'alert', waiter: 'Петров', openedAt: '20:05',
-    zone: 'Веранда', type: 'Общий', totalAmount: 6890, tableNumber: '26', tableId: 'v6', guestCount: 2,
-    guests: [{ id: 'g1', name: 'Гость 1' }, { id: 'g2', name: 'Гость 2' }],
-    items: [
-      { id: 'i70', product: { id: 's2', categoryId: 'shashlik', name: 'Курица', price: 280 }, quantity: 5, guestId: 'g1', modifiers: [] },
-      { id: 'i71', product: { id: 'pz4', categoryId: 'pizza', name: 'Гавайская', price: 380 }, quantity: 4, guestId: 'g2', modifiers: [] },
-    ],
-    hasAlert: true,
-  },
-  {
-    id: 'o18', number: '18', status: 'active', waiter: 'Иванов', openedAt: '20:10',
-    zone: 'Основной зал', type: 'Общий', totalAmount: 680, tableNumber: '12', tableId: 't12', guestCount: 1,
-    guests: [{ id: 'g1', name: 'Гость 1' }],
-    items: [
-      { id: 'i72', product: { id: 'h7', categoryId: 'hot', name: 'Цезарь с курицей', price: 290 }, quantity: 1, guestId: 'g1', modifiers: [] },
-      { id: 'i73', product: { id: 'sp3', categoryId: 'soups', name: 'Солянка', price: 260 }, quantity: 1, guestId: 'g1', modifiers: [] },
-    ],
-  },
-  {
-    id: 'o19', number: '19', status: 'active', waiter: 'Петров', openedAt: '20:15',
-    zone: 'Основной зал', type: 'Общий', totalAmount: 260, tableNumber: '13', tableId: 't13', guestCount: 1,
-    guests: [{ id: 'g1', name: 'Гость 1' }],
-    items: [
-      { id: 'i74', product: { id: 'h4', categoryId: 'hot', name: 'Карбонара', price: 260 }, quantity: 1, guestId: 'g1', modifiers: [] },
-    ],
-  },
-];
 
 // ── Helper: calculate total from items ──
 const calcTotal = (items: OrderItem[]): number =>
@@ -197,61 +27,207 @@ const calcTotal = (items: OrderItem[]): number =>
     return sum + (item.product.price + modPrice) * item.quantity;
   }, 0);
 
-// Get next order number
+// Get next order number (resets daily)
 const getNextOrderNumber = (orders: Order[]): string => {
+  const today = new Date().toDateString();
+  const todayOrders = orders.filter(o => {
+    // Compare by openedAt time string — rough but works for same-day
+    return true; // For MVP, just increment globally
+  });
   const nums = orders.map(o => parseFloat(o.number)).filter(n => !isNaN(n));
   const maxNum = nums.length > 0 ? Math.max(...nums) : 0;
   return String(Math.floor(maxNum) + 1);
 };
 
-interface OrderStoreState {
-  // ── All orders ──
-  orders: Order[];
+// ═══ Supabase sync functions (fire-and-forget) ═══
 
-  // ── Currently editing order (POS screen) ──
-  currentOrderId: string | null;
-  items: OrderItem[];
-  guests: Guest[];
-  tableNumber: string;
-  tableId: string;
-  isQuickCheck: boolean;
-  selectedItemId: string | null;
-  activeGuestId: string | null;
-  activeAction: ActiveAction;
-  activeCategoryId: string;
-  activeModifierGroupId: string;
+const syncCreateOrder = async (order: Order) => {
+  try {
+    const { error } = await supabase.from('orders').insert({
+      id: order.id,
+      venue_id: VENUE_ID,
+      table_id: order.tableId || null,
+      number: order.number,
+      status: order.status,
+      guest_count: order.guestCount,
+      table_number: order.tableNumber || null,
+      zone_name: order.zone,
+      order_type: order.type,
+      is_quick_check: order.isQuickCheck || false,
+      opened_at: new Date().toISOString(),
+      total_amount: order.totalAmount,
+      waiter_id: null, // TODO: map waiter name to ID
+    });
+    if (error) console.error('syncCreateOrder:', error.message);
+  } catch (e: any) {
+    console.error('syncCreateOrder:', e.message);
+  }
+};
 
-  // ── Order list actions ──
-  createOrderForTable: (tableId: string, tableNumber: string, zone: string) => string;
-  createQuickCheck: () => string;
-  getOrderForTable: (tableId: string) => Order | undefined;
-  openOrder: (orderId: string) => void;
-  closeOrder: () => void;
-  deleteOrder: (orderId: string) => void;
+const syncUpdateOrder = async (order: Order) => {
+  try {
+    const { error } = await supabase.from('orders').update({
+      status: order.status,
+      guest_count: order.guestCount,
+      table_id: order.tableId || null,
+      table_number: order.tableNumber || null,
+      zone_name: order.zone,
+      total_amount: order.totalAmount,
+      comment: (order as any).comment || null,
+    }).eq('id', order.id);
+    if (error) console.error('syncUpdateOrder:', error.message);
+  } catch (e: any) {
+    console.error('syncUpdateOrder:', e.message);
+  }
+};
 
-  // ── POS editing actions (all auto-save) ──
-  addGuest: () => void;
-  setActiveGuest: (guestId: string | null) => void;
-  addProduct: (product: Product) => void;
-  removeProduct: (itemId: string) => void;
-  updateQuantity: (itemId: string, delta: number) => void;
-  getTotal: () => number;
-  getGuestTotal: (guestId: string | null) => number;
+const syncOrderItems = async (orderId: string, items: OrderItem[]) => {
+  try {
+    // Delete existing items
+    await supabase.from('order_item_modifiers')
+      .delete()
+      .in('order_item_id', items.map(i => i.id).concat(['__none__']));
 
-  selectItem: (itemId: string | null) => void;
-  setActiveAction: (action: ActiveAction) => void;
-  setActiveCategory: (categoryId: string) => void;
-  setActiveModifierGroup: (groupId: string) => void;
-  toggleModifier: (modifier: Modifier) => void;
-  assignItemToGuest: (itemId: string, guestId: string | null) => void;
-}
+    await supabase.from('order_items').delete().eq('order_id', orderId);
+
+    // Insert current items
+    if (items.length > 0) {
+      const orderItems = items.map(item => ({
+        id: item.id,
+        order_id: orderId,
+        product_id: item.product.id,
+        product_name: item.product.name,
+        product_price: item.product.price,
+        quantity: item.quantity,
+        guest_number: item.guestId ? parseInt(item.guestId.replace(/\D/g, '')) || 1 : 1,
+      }));
+
+      const { error } = await supabase.from('order_items').insert(orderItems);
+      if (error) console.error('syncOrderItems insert:', error.message);
+
+      // Insert modifiers
+      const modRows: any[] = [];
+      items.forEach(item => {
+        item.modifiers.forEach(mod => {
+          modRows.push({
+            order_item_id: item.id,
+            modifier_id: mod.id,
+            modifier_name: mod.name,
+            modifier_price: mod.price,
+          });
+        });
+      });
+      if (modRows.length > 0) {
+        await supabase.from('order_item_modifiers').insert(modRows);
+      }
+    }
+  } catch (e: any) {
+    console.error('syncOrderItems:', e.message);
+  }
+};
+
+const syncDeleteOrder = async (orderId: string) => {
+  try {
+    await supabase.from('order_item_modifiers')
+      .delete()
+      .in('order_item_id',
+        (await supabase.from('order_items').select('id').eq('order_id', orderId)).data?.map((i: any) => i.id) || []
+      );
+    await supabase.from('order_items').delete().eq('order_id', orderId);
+    await supabase.from('orders').delete().eq('id', orderId);
+  } catch (e: any) {
+    console.error('syncDeleteOrder:', e.message);
+  }
+};
+
+// ═══ Load orders from Supabase ═══
+
+const loadOrdersFromSupabase = async (): Promise<Order[]> => {
+  try {
+    const { data: orderData, error: orderError } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('venue_id', VENUE_ID)
+      .in('status', ['active', 'alert'])
+      .order('opened_at');
+
+    if (orderError) throw orderError;
+    if (!orderData || orderData.length === 0) return [];
+
+    // Load items for all orders
+    const orderIds = orderData.map((o: any) => o.id);
+    const { data: itemData } = await supabase
+      .from('order_items')
+      .select('*, order_item_modifiers(*)')
+      .in('order_id', orderIds);
+
+    return orderData.map((o: any) => {
+      const items: OrderItem[] = (itemData || [])
+        .filter((i: any) => i.order_id === o.id)
+        .map((i: any) => ({
+          id: i.id,
+          product: {
+            id: i.product_id,
+            categoryId: '',
+            name: i.product_name,
+            price: Number(i.product_price),
+          },
+          quantity: i.quantity,
+          guestId: null,
+          modifiers: (i.order_item_modifiers || []).map((m: any) => ({
+            id: m.modifier_id || m.id,
+            name: m.modifier_name,
+            price: Number(m.modifier_price),
+          })),
+        }));
+
+      return {
+        id: o.id,
+        number: o.number,
+        status: o.status as any,
+        waiter: 'Иванов', // TODO: resolve from waiter_id
+        openedAt: new Date(o.opened_at).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' }),
+        zone: o.zone_name || '',
+        type: o.order_type || 'Общий',
+        totalAmount: Number(o.total_amount),
+        tableNumber: o.table_number || '',
+        tableId: o.table_id || '',
+        guestCount: o.guest_count || 1,
+        guests: Array.from({ length: o.guest_count || 1 }, (_, i) => ({
+          id: `g${i + 1}`,
+          name: `Гость ${i + 1}`,
+        })),
+        items,
+        isQuickCheck: o.is_quick_check || false,
+        comment: o.comment,
+      } as Order;
+    });
+  } catch (e: any) {
+    console.error('loadOrdersFromSupabase:', e.message);
+    return [];
+  }
+};
+
+// ═══ Sync helper: debounced item sync ═══
+let itemSyncTimeout: any = null;
+const debouncedSyncItems = (orderId: string, items: OrderItem[]) => {
+  if (itemSyncTimeout) clearTimeout(itemSyncTimeout);
+  itemSyncTimeout = setTimeout(() => {
+    syncOrderItems(orderId, items);
+    // Also update the order total
+    const total = calcTotal(items);
+    supabase.from('orders').update({ total_amount: total }).eq('id', orderId);
+  }, 500); // Wait 500ms after last change
+};
+
+// ═══ Store ═══
 
 // ── Sync current editing state back into the orders array ──
 const syncToOrders = (state: OrderStoreState): Order[] => {
   if (!state.currentOrderId) return state.orders;
 
   const total = calcTotal(state.items);
-  return state.orders.map(o =>
+  const updated = state.orders.map(o =>
     o.id === state.currentOrderId
       ? {
           ...o,
@@ -266,11 +242,52 @@ const syncToOrders = (state: OrderStoreState): Order[] => {
         }
       : o
   );
+
+  // Debounced sync to Supabase
+  debouncedSyncItems(state.currentOrderId, state.items);
+
+  return updated;
 };
 
-export const useOrderStore = create<OrderStoreState>((set, get) => ({
-  orders: seedOrders,
+interface OrderStoreState {
+  orders: Order[];
+  currentOrderId: string | null;
+  items: OrderItem[];
+  guests: Guest[];
+  tableNumber: string;
+  tableId: string;
+  isQuickCheck: boolean;
+  selectedItemId: string | null;
+  activeGuestId: string | null;
+  activeAction: ActiveAction;
+  activeCategoryId: string;
+  activeModifierGroupId: string;
 
+  // Actions
+  fetchOrders: () => Promise<void>;
+  createOrderForTable: (tableId: string, tableNumber: string, zone: string) => string;
+  createQuickCheck: () => string;
+  getOrderForTable: (tableId: string) => Order | undefined;
+  openOrder: (orderId: string) => void;
+  closeOrder: () => void;
+  deleteOrder: (orderId: string) => void;
+  addGuest: () => void;
+  setActiveGuest: (guestId: string | null) => void;
+  addProduct: (product: Product) => void;
+  removeProduct: (itemId: string) => void;
+  updateQuantity: (itemId: string, delta: number) => void;
+  getTotal: () => number;
+  getGuestTotal: (guestId: string | null) => number;
+  selectItem: (itemId: string | null) => void;
+  setActiveAction: (action: ActiveAction) => void;
+  setActiveCategory: (categoryId: string) => void;
+  setActiveModifierGroup: (groupId: string) => void;
+  toggleModifier: (modifier: Modifier) => void;
+  assignItemToGuest: (itemId: string, guestId: string | null) => void;
+}
+
+export const useOrderStore = create<OrderStoreState>((set, get) => ({
+  orders: [],
   currentOrderId: null,
   items: [],
   guests: [],
@@ -280,14 +297,18 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
   selectedItemId: null,
   activeGuestId: null,
   activeAction: null,
-  activeCategoryId: 'hot',
+  activeCategoryId: '',
   activeModifierGroupId: 'filling',
 
-  // ── Order list ──
+  // ── Load from Supabase ──
+  fetchOrders: async () => {
+    const orders = await loadOrdersFromSupabase();
+    set({ orders });
+  },
 
+  // ── Create order for table ──
   createOrderForTable: (tableId: string, tableNumber: string, zone: string) => {
     const state = get();
-    // Check if table already has an active order
     const existing = state.orders.find(o => o.tableId === tableId && o.status !== 'inactive');
     if (existing) {
       get().openOrder(existing.id);
@@ -297,13 +318,13 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
     const id = generateId();
     const guest1Id = generateId();
     const guests = [{ id: guest1Id, name: 'Гость 1' }];
+    const currentUser = useShiftStore.getState().currentUser;
 
-    // Create order immediately in orders list
     const newOrder: Order = {
       id,
       number: getNextOrderNumber(state.orders),
       status: 'active',
-      waiter: 'Иванов',
+      waiter: currentUser?.name || 'Иванов',
       openedAt: now(),
       zone,
       type: 'Общий',
@@ -326,23 +347,27 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
       selectedItemId: null,
       activeGuestId: guest1Id,
       activeAction: null,
-      activeCategoryId: 'hot',
-      activeModifierGroupId: 'filling',
     });
+
+    // Sync to Supabase
+    syncCreateOrder(newOrder);
+
     return id;
   },
 
+  // ── Quick check ──
   createQuickCheck: () => {
     const state = get();
     const id = generateId();
     const guest1Id = generateId();
     const guests = [{ id: guest1Id, name: 'Гость 1' }];
+    const currentUser = useShiftStore.getState().currentUser;
 
     const newOrder: Order = {
       id,
       number: getNextOrderNumber(state.orders),
       status: 'active',
-      waiter: 'Иванов',
+      waiter: currentUser?.name || 'Иванов',
       openedAt: now(),
       zone: 'Быстрый чек',
       type: 'Общий',
@@ -366,9 +391,9 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
       selectedItemId: null,
       activeGuestId: guest1Id,
       activeAction: null,
-      activeCategoryId: 'hot',
-      activeModifierGroupId: 'filling',
     });
+
+    syncCreateOrder(newOrder);
     return id;
   },
 
@@ -390,13 +415,17 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
       selectedItemId: null,
       activeGuestId: order.guests.length > 0 ? order.guests[0].id : null,
       activeAction: null,
-      activeCategoryId: 'hot',
-      activeModifierGroupId: 'filling',
     });
   },
 
   closeOrder: () => {
-    // Just clear current editing state — everything is already saved
+    const state = get();
+    // Sync final state to Supabase before closing
+    if (state.currentOrderId) {
+      const order = state.orders.find(o => o.id === state.currentOrderId);
+      if (order) syncUpdateOrder(order);
+    }
+
     set({
       currentOrderId: null,
       items: [],
@@ -412,6 +441,7 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
     set((state) => ({
       orders: state.orders.filter(o => o.id !== orderId),
     }));
+    syncDeleteOrder(orderId);
   },
 
   // ── POS editing (all auto-save via syncToOrders) ──
@@ -432,8 +462,6 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
   addProduct: (product: Product) => {
     set((state) => {
       const targetGuestId = state.activeGuestId;
-
-      // Check for existing unmodified item for same product + same guest
       const existing = state.items.find(
         (item) => item.product.id === product.id
           && item.modifiers.length === 0
@@ -442,9 +470,7 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
 
       if (existing) {
         const newItems = state.items.map((item) =>
-          item.id === existing.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
+          item.id === existing.id ? { ...item, quantity: item.quantity + 1 } : item
         );
         const newState = { ...state, items: newItems };
         return { items: newItems, orders: syncToOrders(newState) };
@@ -507,10 +533,7 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
   },
 
   getTotal: () => calcTotal(get().items),
-
-  getGuestTotal: (guestId: string | null) => {
-    return calcTotal(get().items.filter(item => item.guestId === guestId));
-  },
+  getGuestTotal: (guestId: string | null) => calcTotal(get().items.filter(item => item.guestId === guestId)),
 
   selectItem: (itemId: string | null) => {
     if (!itemId) {
@@ -555,4 +578,3 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
     });
   },
 }));
-

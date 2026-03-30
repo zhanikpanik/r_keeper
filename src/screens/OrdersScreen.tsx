@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, StyleSheet, Text, TextInput, TouchableOpacity, SafeAreaView, StatusBar, useWindowDimensions } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../theme/colors';
@@ -12,7 +12,8 @@ import { ShiftInfoModal } from '../components/ShiftInfoModal';
 import { CloseShiftModal } from '../components/CloseShiftModal';
 import { useShiftStore } from '../store/shiftStore';
 import { useOrderStore } from '../store/orderStore';
-import { FloorTable } from '../mocks/floorPlan';
+import { useMenuStore } from '../store/menuStore';
+import { useVenueStore, VenueTable } from '../store/venueStore';
 import { Order } from '../types';
 
 const getCols = (width: number): number => {
@@ -37,13 +38,27 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const createQuickCheck = useOrderStore((s) => s.createQuickCheck);
   const openOrder = useOrderStore((s) => s.openOrder);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [zoneIdx, setZoneIdx] = useState(0);
+  const [waiterFilterIdx, setWaiterFilterIdx] = useState(-1); // -1 = all
   const [reportVisible, setReportVisible] = useState(false);
   const [shiftInfoVisible, setShiftInfoVisible] = useState(false);
   const [closeShiftVisible, setCloseShiftVisible] = useState(false);
   const [searchActive, setSearchActive] = useState(false);
   const closeShift = useShiftStore((s) => s.closeShift);
+  const logout = useShiftStore((s) => s.logout);
   const [searchQuery, setSearchQuery] = useState('');
   const isOrders = activeTab === 'orders';
+  const fetchMenu = useMenuStore((s) => s.fetchMenu);
+  const fetchVenue = useVenueStore((s) => s.fetchVenue);
+  const fetchOrders = useOrderStore((s) => s.fetchOrders);
+  const venueZones = useVenueStore((s) => s.zones);
+  const waiters = useVenueStore((s) => s.waiters);
+
+  useEffect(() => {
+    fetchMenu();
+    fetchVenue();
+    fetchOrders();
+  }, []);
 
   // ── Dynamic rows based on screen height ──
   const { height, width } = useWindowDimensions();
@@ -58,9 +73,15 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const cardHeight = (gridHeight - GAP * (ROWS - 1)) / ROWS;
   const scale = Math.max(0.8, Math.min(1.5, cardHeight / 120));
 
+  // ── Filter orders by waiter ──
+  const waiterFilterName = waiterFilterIdx >= 0 ? waiters[waiterFilterIdx]?.name : null;
+  const waiterFiltered = waiterFilterName
+    ? orders.filter((o) => o.waiter === waiterFilterName)
+    : orders;
+
   // ── Filter orders by search ──
   const filteredOrders = searchQuery.trim()
-    ? orders.filter((o) => {
+    ? waiterFiltered.filter((o) => {
         const q = searchQuery.toLowerCase();
         return (
           o.number.toLowerCase().includes(q) ||
@@ -69,7 +90,7 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           (o.zone && o.zone.toLowerCase().includes(q))
         );
       })
-    : orders;
+    : waiterFiltered;
 
   // ── Pagination (orders only) ──
   const totalItems = filteredOrders.length;
@@ -94,7 +115,7 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   };
 
   // ── Table tap ──
-  const handleTablePress = (table: FloorTable, existingOrder?: Order) => {
+  const handleTablePress = (table: VenueTable, existingOrder?: Order) => {
     if (existingOrder) {
       openOrder(existingOrder.id);
     } else {
@@ -131,23 +152,40 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         {/* ═══ HEADER ROW ═══ */}
         <View style={[styles.headerRow, { marginHorizontal: PADDING, marginBottom: GAP }]}>
           <View style={[styles.filterBox, { flex: 2, marginRight: GAP }]}>
-            <TouchableOpacity style={styles.filterArrow}>
+            <TouchableOpacity
+              style={styles.filterArrow}
+              onPress={() => {
+                if (isOrders) {
+                  setWaiterFilterIdx(i => Math.max(-1, i - 1));
+                  setPage(0);
+                } else if (venueZones.length > 0) {
+                  setZoneIdx(i => Math.max(0, i - 1));
+                }
+              }}
+            >
               <Feather name="chevron-left" size={22 * scale} color={theme.colors.textPrimary} />
             </TouchableOpacity>
             <View style={styles.filterCenter}>
-              <Text style={[styles.filterLabel, { fontSize: 15 * scale }]}>{isOrders ? 'Все официанты' : 'Все залы'}</Text>
+              <Text style={[styles.filterLabel, { fontSize: 15 * scale }]}>
+                {isOrders
+                  ? (waiterFilterIdx < 0 ? 'Все официанты' : (waiters[waiterFilterIdx]?.name || 'Все официанты'))
+                  : (venueZones[zoneIdx]?.name || 'Загрузка...')}
+              </Text>
             </View>
-            <TouchableOpacity style={styles.filterArrow}>
+            <TouchableOpacity
+              style={styles.filterArrow}
+              onPress={() => {
+                if (isOrders) {
+                  setWaiterFilterIdx(i => Math.min(waiters.length - 1, i + 1));
+                  setPage(0);
+                } else if (venueZones.length > 0) {
+                  setZoneIdx(i => Math.min(venueZones.length - 1, i + 1));
+                }
+              }}
+            >
               <Feather name="chevron-right" size={22 * scale} color={theme.colors.textPrimary} />
             </TouchableOpacity>
           </View>
-
-          <TouchableOpacity
-            style={[styles.reportBtn, { flex: 1, marginRight: GAP }]}
-            onPress={() => setReportVisible(true)}
-          >
-            <Text style={[styles.reportLabel, { fontSize: 14 * scale }]}>Отчет</Text>
-          </TouchableOpacity>
 
           {searchActive ? (
             <View style={[styles.searchInputWrap, { flex: 2 }]}>
@@ -168,15 +206,24 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               </TouchableOpacity>
             </View>
           ) : (
-            <View style={[styles.headerRight, { flex: 1 }]}>
-              <TouchableOpacity style={[styles.bellBtn, { marginRight: GAP }]}>
-                <NotificationIcon size={28 * scale} color="#FF9800" />
-                <Text style={[styles.bellBadge, { fontSize: 14 * scale }]}>2</Text>
+            <>
+              <TouchableOpacity
+                style={[styles.reportBtn, { flex: 1, marginRight: GAP }]}
+                onPress={() => setReportVisible(true)}
+              >
+                <Text style={[styles.reportLabel, { fontSize: 14 * scale }]}>Отчет</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.searchBtn} onPress={() => setSearchActive(true)}>
-                <SearchIcon size={28 * scale} color={theme.colors.textPrimary} />
-              </TouchableOpacity>
-            </View>
+
+              <View style={[styles.headerRight, { flex: 1 }]}>
+                <TouchableOpacity style={[styles.bellBtn, { marginRight: GAP }]}>
+                  <NotificationIcon size={28 * scale} color="#FF9800" />
+                  <Text style={[styles.bellBadge, { fontSize: 14 * scale }]}>2</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.searchBtn} onPress={() => setSearchActive(true)}>
+                  <SearchIcon size={28 * scale} color={theme.colors.textPrimary} />
+                </TouchableOpacity>
+              </View>
+            </>
           )}
         </View>
 
@@ -238,7 +285,7 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         ) : (
           /* Floor plan */
           <View style={[styles.floorPlanArea, { marginHorizontal: PADDING }]}>
-            <FloorPlan onTablePress={handleTablePress} />
+            <FloorPlan onTablePress={handleTablePress} zoneIdx={zoneIdx} />
           </View>
         )}
 
@@ -247,7 +294,7 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           activeTab={activeTab}
           onTabChange={setActiveTab}
           onMenuPress={() => setMenuVisible(true)}
-          onLockPress={() => navigation.navigate('Lock')}
+          onLockPress={() => navigation.navigate('Lock', { mode: 'lock' })}
           scale={scale}
         />
 
@@ -257,6 +304,10 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           onOpenReport={() => setReportVisible(true)}
           onOpenShiftInfo={() => setShiftInfoVisible(true)}
           onCloseShift={() => setCloseShiftVisible(true)}
+          onLogout={() => {
+            logout();
+            navigation.replace('Lock');
+          }}
         />
         <SalesReportModal visible={reportVisible} onClose={() => setReportVisible(false)} />
         <ShiftInfoModal visible={shiftInfoVisible} onClose={() => setShiftInfoVisible(false)} />

@@ -2,17 +2,11 @@ import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { theme } from '../theme/colors';
 import { useOrderStore } from '../store/orderStore';
-import { menuProducts, menuCategories } from '../mocks/menuData';
+import { useMenuStore } from '../store/menuStore';
 import { Product } from '../types';
 
 const PRODUCT_COLS = 3;
 const GAP = 6;
-
-// Get category color for a product
-const getCategoryColor = (categoryId: string): string => {
-  const cat = menuCategories.find(c => c.id === categoryId);
-  return cat ? cat.colorHex : '#333';
-};
 
 interface Props {
   searchQuery: string;
@@ -22,12 +16,13 @@ interface Props {
 export const SearchMode: React.FC<Props> = ({ searchQuery }) => {
   const { addProduct } = useOrderStore();
 
-  // Get all products flattened
-  const allProducts = useMemo(() => {
-    const all: Product[] = [];
-    Object.values(menuProducts).forEach(products => all.push(...products));
-    return all;
-  }, []);
+  const menuCategories = useMenuStore((s) => s.categories);
+  const allProducts = useMenuStore((s) => s.allProducts);
+
+  const getCategoryColor = (categoryId: string): string => {
+    const cat = menuCategories.find(c => c.id === categoryId);
+    return cat ? cat.colorHex : '#333';
+  };
 
   // Filter by search query
   const filtered = useMemo(() => {

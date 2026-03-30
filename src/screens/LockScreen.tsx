@@ -9,26 +9,49 @@ import {
 } from 'react-native';
 import { theme } from '../theme/colors';
 import { LockIcon } from '../components/Icons';
+import { useVenueStore } from '../store/venueStore';
+import { useShiftStore } from '../store/shiftStore';
 
-const CORRECT_PIN = '1234';
 const PIN_LENGTH = 4;
 
 interface Props {
   navigation: any;
+  route?: any;
 }
 
-export const LockScreen: React.FC<Props> = ({ navigation }) => {
+export const LockScreen: React.FC<Props> = ({ navigation, route }) => {
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
+  const waiters = useVenueStore((s) => s.waiters);
+  const setCurrentUser = useShiftStore((s) => s.setCurrentUser);
+  const currentUser = useShiftStore((s) => s.currentUser);
 
-  const handleDigit = useCallback((digit: string) => {
+  // If coming from lock button (already logged in), just need any valid PIN
+  const isLockMode = route?.params?.mode === 'lock';
+
+  const handleDigit = useCallback(async (digit: string) => {
     setError(false);
     const newPin = pin + digit;
 
     if (newPin.length === PIN_LENGTH) {
-      if (newPin === CORRECT_PIN) {
+      // Find user by PIN
+      const user = waiters.find(w => w.pin === newPin);
+
+      if (user) {
         setPin('');
-        navigation.goBack();
+        setCurrentUser({ id: user.id, name: user.name, role: user.role });
+
+        if (isLockMode) {
+          navigation.goBack();
+        } else {
+          // Check if there's an open shift
+          const hasOpenShift = await useShiftStore.getState().fetchOpenShift();
+          if (hasOpenShift) {
+            navigation.replace('Orders');
+          } else {
+            navigation.replace('OpenShift');
+          }
+        }
       } else {
         setError(true);
         setTimeout(() => {
@@ -39,7 +62,7 @@ export const LockScreen: React.FC<Props> = ({ navigation }) => {
     } else {
       setPin(newPin);
     }
-  }, [pin, navigation]);
+  }, [pin, navigation, waiters, isLockMode]);
 
   const handleDelete = useCallback(() => {
     setError(false);
@@ -69,22 +92,19 @@ export const LockScreen: React.FC<Props> = ({ navigation }) => {
       <StatusBar hidden />
       <View style={styles.container}>
         <View style={styles.content}>
-          {/* Icon */}
           <View style={styles.iconWrap}>
             <LockIcon size={48} color={theme.colors.textSecondary} />
           </View>
 
-          {/* Title */}
           <Text style={styles.title}>r_keeper</Text>
-          <Text style={styles.subtitle}>Введите PIN-код</Text>
+          <Text style={styles.subtitle}>
+            {isLockMode ? 'Экран заблокирован' : 'Введите PIN-код'}
+          </Text>
 
-          {/* Dots */}
           <View style={styles.dotsRow}>{dots}</View>
 
-          {/* Error text */}
           {error && <Text style={styles.errorText}>Неверный PIN</Text>}
 
-          {/* Numpad */}
           <View style={styles.numpad}>
             {keys.map((row, rowIdx) => (
               <View key={rowIdx} style={styles.numRow}>

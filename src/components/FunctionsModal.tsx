@@ -25,9 +25,10 @@ interface Props {
   onOpenReport: () => void;
   onOpenShiftInfo: () => void;
   onCloseShift: () => void;
+  onLogout: () => void;
 }
 
-export const FunctionsModal: React.FC<Props> = ({ visible, onClose, onOpenReport, onOpenShiftInfo, onCloseShift }) => {
+export const FunctionsModal: React.FC<Props> = ({ visible, onClose, onOpenReport, onOpenShiftInfo, onCloseShift, onLogout }) => {
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const overlayAnim = useRef(new Animated.Value(0)).current;
   const isVisible = useRef(false);
@@ -106,7 +107,10 @@ export const FunctionsModal: React.FC<Props> = ({ visible, onClose, onOpenReport
     {
       id: 'logout',
       label: 'Выход',
-      disabled: true,
+      onPress: () => {
+        onClose();
+        setTimeout(() => onLogout(), 300);
+      },
     },
   ];
 

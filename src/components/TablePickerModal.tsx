@@ -3,7 +3,10 @@ import { View, Text, TouchableOpacity, StyleSheet, Modal, LayoutChangeEvent } fr
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../theme/colors';
 import { useOrderStore } from '../store/orderStore';
-import { floorZones, FloorTable, SIZE_W, SIZE_H } from '../mocks/floorPlan';
+import { useVenueStore, VenueTable } from '../store/venueStore';
+
+const SIZE_W: Record<string, number> = { small: 1, regular: 2, wide: 3, tall: 1, bar: 1 };
+const SIZE_H: Record<string, number> = { small: 1, regular: 1, wide: 1, tall: 2, bar: 3 };
 
 const GAP = 8;
 
@@ -15,9 +18,10 @@ interface Props {
 export const TablePickerModal: React.FC<Props> = ({ visible, onClose }) => {
   const { tableId } = useOrderStore();
   const orders = useOrderStore((s) => s.orders);
+  const venueZones = useVenueStore((s) => s.zones);
   const [zoneIdx, setZoneIdx] = useState(0);
   const [canvasSize, setCanvasSize] = useState({ w: 0, h: 0 });
-  const zone = floorZones[zoneIdx];
+  const zone = venueZones[zoneIdx];
 
   const handleLayout = (e: LayoutChangeEvent) => {
     setCanvasSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height });
@@ -27,7 +31,7 @@ export const TablePickerModal: React.FC<Props> = ({ visible, onClose }) => {
     return orders.find(o => o.tableId === id && o.status !== 'inactive');
   };
 
-  const getTableColor = (table: FloorTable): string => {
+  const getTableColor = (table: VenueTable): string => {
     if (table.id === tableId) return theme.colors.tabActive; // current table = purple
     const order = getOrderForTable(table.id);
     if (!order) return theme.colors.surfaceLight; // free
@@ -35,7 +39,7 @@ export const TablePickerModal: React.FC<Props> = ({ visible, onClose }) => {
     return theme.colors.orderActive; // occupied
   };
 
-  const handleSelect = (table: FloorTable) => {
+  const handleSelect = (table: VenueTable) => {
     useOrderStore.setState((state) => ({
       tableNumber: table.number,
       tableId: table.id,
@@ -47,6 +51,8 @@ export const TablePickerModal: React.FC<Props> = ({ visible, onClose }) => {
     }));
     onClose();
   };
+
+  if (!zone) return null;
 
   // Grid calculations
   const cellFromW = canvasSize.w > 0 ? (canvasSize.w - (zone.cols - 1) * GAP) / zone.cols : 0;
@@ -70,17 +76,17 @@ export const TablePickerModal: React.FC<Props> = ({ visible, onClose }) => {
             <TouchableOpacity
               style={styles.zoneArrow}
               onPress={() => setZoneIdx(i => Math.max(0, i - 1))}
-              disabled={zoneIdx === 0}
+              disabled={zoneIdx === 0 || venueZones.length === 0}
             >
               <Feather name="chevron-left" size={20} color={zoneIdx === 0 ? '#555' : '#fff'} />
             </TouchableOpacity>
             <Text style={styles.zoneName}>{zone.name}</Text>
             <TouchableOpacity
               style={styles.zoneArrow}
-              onPress={() => setZoneIdx(i => Math.min(floorZones.length - 1, i + 1))}
-              disabled={zoneIdx === floorZones.length - 1}
+              onPress={() => setZoneIdx(i => Math.min(venueZones.length - 1, i + 1))}
+              disabled={zoneIdx >= venueZones.length - 1}
             >
-              <Feather name="chevron-right" size={20} color={zoneIdx === floorZones.length - 1 ? '#555' : '#fff'} />
+              <Feather name="chevron-right" size={20} color={zoneIdx >= venueZones.length - 1 ? '#555' : '#fff'} />
             </TouchableOpacity>
           </View>
 

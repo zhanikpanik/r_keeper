@@ -3,8 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../theme/colors';
 import { useOrderStore } from '../store/orderStore';
-
-const WAITERS = ['Иванов', 'Петров', 'Сидоров', 'Козлов'];
+import { useVenueStore } from '../store/venueStore';
 
 interface Props {
   visible: boolean;
@@ -13,6 +12,7 @@ interface Props {
 
 export const WaiterPickerModal: React.FC<Props> = ({ visible, onClose }) => {
   const currentOrder = useOrderStore((s) => s.orders.find(o => o.id === s.currentOrderId));
+  const waiters = useVenueStore((s) => s.waiters);
   const currentWaiter = currentOrder?.waiter || '';
 
   const handleSelect = (waiter: string) => {
@@ -36,15 +36,15 @@ export const WaiterPickerModal: React.FC<Props> = ({ visible, onClose }) => {
           </View>
 
           <View style={styles.body}>
-            {WAITERS.map((waiter) => (
+            {waiters.map((w) => (
               <TouchableOpacity
-                key={waiter}
-                style={[styles.waiterBtn, currentWaiter === waiter && styles.waiterBtnActive]}
-                onPress={() => handleSelect(waiter)}
+                key={w.id}
+                style={[styles.waiterBtn, currentWaiter === w.name && styles.waiterBtnActive]}
+                onPress={() => handleSelect(w.name)}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.waiterText, currentWaiter === waiter && styles.waiterTextActive]}>
-                  {waiter}
+                <Text style={[styles.waiterText, currentWaiter === w.name && styles.waiterTextActive]}>
+                  {w.name}
                 </Text>
               </TouchableOpacity>
             ))}

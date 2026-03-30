@@ -20,6 +20,7 @@ interface Props {
 export const OpenShiftScreen: React.FC<Props> = ({ navigation }) => {
   const [amount, setAmount] = useState('0');
   const openShift = useShiftStore((s) => s.openShift);
+  const currentUser = useShiftStore((s) => s.currentUser);
 
   const handleDigit = (digit: string) => {
     if (amount === '0') {
@@ -40,7 +41,7 @@ export const OpenShiftScreen: React.FC<Props> = ({ navigation }) => {
   const handleClear = () => setAmount('0');
 
   const handleOpen = () => {
-    openShift('Иванов', parseInt(amount) || 0);
+    openShift(parseInt(amount) || 0);
     navigation.replace('Orders');
   };
 
@@ -57,6 +58,7 @@ export const OpenShiftScreen: React.FC<Props> = ({ navigation }) => {
       <View style={styles.container}>
         <View style={styles.content}>
           <Text style={styles.title}>Открытие смены</Text>
+          <Text style={styles.cashierName}>{currentUser?.name}</Text>
           <Text style={styles.subtitle}>Введите сумму наличных в кассе</Text>
 
           {/* Amount display */}
@@ -101,7 +103,7 @@ export const OpenShiftScreen: React.FC<Props> = ({ navigation }) => {
           </TouchableOpacity>
 
           {/* Skip */}
-          <TouchableOpacity style={styles.skipBtn} onPress={() => { openShift('Иванов', 0); navigation.replace('Orders'); }}>
+          <TouchableOpacity style={styles.skipBtn} onPress={() => { openShift(0); navigation.replace('Orders'); }}>
             <Text style={styles.skipText}>Пропустить (0 ₽ в кассе)</Text>
           </TouchableOpacity>
         </View>
@@ -129,6 +131,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: theme.colors.textPrimary,
     marginBottom: 8,
+  },
+  cashierName: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: theme.colors.tabActive,
+    marginBottom: 4,
   },
   subtitle: {
     fontSize: 16,

@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { theme } from '../theme/colors';
 import { useOrderStore } from '../store/orderStore';
-import { menuCategories } from '../mocks/menuData';
+import { useMenuStore } from '../store/menuStore';
 
 const COLS = 2;
 const GAP = 2;
@@ -15,6 +15,15 @@ export const CategoryMenu: React.FC = () => {
   const totalCells = ROWS * COLS;
 
   type Cell = { kind: 'category'; id: string; name: string } | { kind: 'empty' };
+  const menuCategories = useMenuStore((s) => s.categories);
+
+  // Auto-select first category if current one doesn't exist
+  React.useEffect(() => {
+    if (menuCategories.length > 0 && !menuCategories.find(c => c.id === activeCategoryId)) {
+      setActiveCategory(menuCategories[0].id);
+    }
+  }, [menuCategories]);
+
   const cells: Cell[] = menuCategories.map(c => ({ kind: 'category' as const, id: c.id, name: c.name }));
   
   // Fill remaining with empties

@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../theme/colors';
 import { useOrderStore } from '../store/orderStore';
-import { menuProducts, menuCategories } from '../mocks/menuData';
+import { useMenuStore } from '../store/menuStore';
 import { Product } from '../types';
 
 const COLS = 3;
@@ -13,6 +13,8 @@ const TOTAL_CELLS = COLS * ROWS; // 18
 
 export const ProductGrid: React.FC = () => {
   const { activeCategoryId, addProduct } = useOrderStore();
+  const menuProducts = useMenuStore((s) => s.products);
+  const menuCategories = useMenuStore((s) => s.categories);
   const products = menuProducts[activeCategoryId] || [];
   const category = menuCategories.find(c => c.id === activeCategoryId);
   const categoryName = category?.name || '';
