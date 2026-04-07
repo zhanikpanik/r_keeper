@@ -5,18 +5,18 @@ import {
   TouchableOpacity,
   StyleSheet,
   Animated,
-  Dimensions,
 } from 'react-native';
-import { Feather } from '@expo/vector-icons';
 import { theme } from '../theme/colors';
 
-const DRAWER_WIDTH = 320;
+const POPOVER_WIDTH = 280;
+const ARROW_SIZE = 10;
 
 interface MenuItem {
   id: string;
   label: string;
   onPress?: () => void;
   disabled?: boolean;
+  destructive?: boolean;
 }
 
 interface Props {
@@ -28,141 +28,158 @@ interface Props {
   onLogout: () => void;
 }
 
-export const FunctionsModal: React.FC<Props> = ({ visible, onClose, onOpenReport, onOpenShiftInfo, onCloseShift, onLogout }) => {
-  const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
+export const FunctionsModal: React.FC<Props> = ({
+  visible,
+  onClose,
+  onOpenReport,
+  onOpenShiftInfo,
+  onCloseShift,
+  onLogout,
+}) => {
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
   const overlayAnim = useRef(new Animated.Value(0)).current;
-  const isVisible = useRef(false);
+  const [shouldRender, setShouldRender] = React.useState(false);
 
   useEffect(() => {
     if (visible) {
-      isVisible.current = true;
+      setShouldRender(true);
       Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 250,
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          damping: 20,
+          stiffness: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 1,
+          duration: 150,
           useNativeDriver: true,
         }),
         Animated.timing(overlayAnim, {
           toValue: 1,
-          duration: 250,
+          duration: 150,
           useNativeDriver: true,
         }),
       ]).start();
-    } else if (isVisible.current) {
+    } else {
       Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: -DRAWER_WIDTH,
-          duration: 200,
+        Animated.timing(scaleAnim, {
+          toValue: 0,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 0,
+          duration: 150,
           useNativeDriver: true,
         }),
         Animated.timing(overlayAnim, {
           toValue: 0,
-          duration: 200,
+          duration: 150,
           useNativeDriver: true,
         }),
-      ]).start();
-    }
-  }, [visible]);
-
-  const items: MenuItem[] = [
-    {
-      id: 'report',
-      label: 'Отчет за смену',
-      onPress: () => {
-        onClose();
-        setTimeout(() => onOpenReport(), 300);
-      },
-    },
-    {
-      id: 'shift',
-      label: 'Текущая смена',
-      onPress: () => {
-        onClose();
-        setTimeout(() => onOpenShiftInfo(), 300);
-      },
-    },
-    {
-      id: 'closeShift',
-      label: 'Закрыть смену',
-      onPress: () => {
-        onClose();
-        setTimeout(() => onCloseShift(), 300);
-      },
-    },
-    {
-      id: 'devices',
-      label: 'Принтеры и устройства',
-      disabled: true,
-    },
-    {
-      id: 'cashDrawer',
-      label: 'Денежный ящик',
-      disabled: true,
-    },
-    {
-      id: 'clearCache',
-      label: 'Обновить данные',
-      disabled: true,
-    },
-    {
-      id: 'logout',
-      label: 'Выход',
-      onPress: () => {
-        onClose();
-        setTimeout(() => onLogout(), 300);
-      },
-    },
-  ];
-
-  const [shouldRender, setShouldRender] = React.useState(false);
-
-  useEffect(() => {
-    if (visible) setShouldRender(true);
-  }, [visible]);
-
-  useEffect(() => {
-    if (!visible && !shouldRender) return;
-    if (!visible) {
-      const timer = setTimeout(() => setShouldRender(false), 250);
-      return () => clearTimeout(timer);
+      ]).start(() => setShouldRender(false));
     }
   }, [visible]);
 
   if (!shouldRender) return null;
 
+  const groups: MenuItem[][] = [
+    [
+      {
+        id: 'report',
+        label: 'Отчет за смену',
+        onPress: () => { onClose(); setTimeout(onOpenReport, 200); },
+      },
+      {
+        id: 'shift',
+        label: 'Текущая смена',
+        onPress: () => { onClose(); setTimeout(onOpenShiftInfo, 200); },
+      },
+      {
+        id: 'closeShift',
+        label: 'Закрыть смену',
+        onPress: () => { onClose(); setTimeout(onCloseShift, 200); },
+      },
+    ],
+    [
+      {
+        id: 'devices',
+        label: 'Принтеры и устройства',
+        disabled: true,
+      },
+      {
+        id: 'cashDrawer',
+        label: 'Денежный ящик',
+        disabled: true,
+      },
+      {
+        id: 'clearCache',
+        label: 'Обновить данные',
+        disabled: true,
+      },
+    ],
+    [
+      {
+        id: 'logout',
+        label: 'Выход',
+        destructive: true,
+        onPress: () => { onClose(); setTimeout(onLogout, 200); },
+      },
+    ],
+  ];
+
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents={visible ? 'auto' : 'none'}>
-      {/* Overlay */}
+      {/* Overlay — subtle, not heavy */}
       <Animated.View style={[styles.overlay, { opacity: overlayAnim }]}>
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
       </Animated.View>
 
-      {/* Drawer */}
-      <Animated.View style={[styles.drawer, { transform: [{ translateX: slideAnim }] }]}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Функции</Text>
-          <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-            <Feather name="x" size={22} color="#aaa" />
-          </TouchableOpacity>
-        </View>
+      {/* Popover positioned above the ≡ button (bottom-left) */}
+      <Animated.View
+        style={[
+          styles.popover,
+          {
+            opacity: opacityAnim,
+            transform: [
+              { scale: scaleAnim },
+            ],
+          },
+        ]}
+      >
+        {/* Menu groups */}
+        {groups.map((group, gi) => (
+          <View key={gi} style={[styles.group, gi < groups.length - 1 && styles.groupSpacing]}>
+            {group.map((item, ii) => (
+              <TouchableOpacity
+                key={item.id}
+                style={[
+                  styles.menuItem,
+                  ii < group.length - 1 && styles.menuItemBorder,
+                  item.disabled && styles.menuItemDisabled,
+                ]}
+                onPress={item.onPress}
+                disabled={item.disabled}
+                activeOpacity={0.6}
+              >
+                <Text
+                  style={[
+                    styles.menuLabel,
+                    item.disabled && styles.menuLabelDisabled,
+                    item.destructive && styles.menuLabelDestructive,
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ))}
 
-        {/* Sections */}
-        <View style={styles.body}>
-          {items.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={[styles.menuItem, item.disabled && styles.menuItemDisabled]}
-              onPress={item.onPress}
-              disabled={item.disabled}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.menuLabel, item.disabled && styles.menuLabelDisabled]}>
-                {item.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {/* Arrow pointing down to ≡ button */}
+        <View style={styles.arrow} />
       </Animated.View>
     </View>
   );
@@ -171,60 +188,65 @@ export const FunctionsModal: React.FC<Props> = ({ visible, onClose, onOpenReport
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.25)',
   },
-  drawer: {
+  popover: {
     position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: DRAWER_WIDTH,
-    backgroundColor: theme.colors.surface,
-    borderRightWidth: 1,
-    borderRightColor: 'rgba(255,255,255,0.08)',
+    bottom: 84,
+    left: 14,
+    width: POPOVER_WIDTH,
+    backgroundColor: '#2C2C2E',
+    borderRadius: 14,
+    paddingVertical: 4,
+    // iOS-style shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 24,
+    elevation: 20,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 18,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+  group: {
+    backgroundColor: '#2C2C2E',
+    borderRadius: 0,
+    overflow: 'hidden',
   },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: theme.colors.textPrimary,
-  },
-  closeBtn: {
-    width: 36,
-    height: 36,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  body: {
-    padding: 20,
+  groupSpacing: {
+    borderBottomWidth: 8,
+    borderBottomColor: '#1C1C1E',
   },
   menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    gap: 14,
-    marginBottom: 2,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+  },
+  menuItemBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
   },
   menuItemDisabled: {
     opacity: 0.35,
   },
   menuLabel: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '500',
-    color: theme.colors.textPrimary,
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: '400',
   },
   menuLabelDisabled: {
-    color: theme.colors.textSecondary,
+    color: '#8E8E93',
+  },
+  menuLabelDestructive: {
+    color: '#FF453A',
+  },
+  arrow: {
+    position: 'absolute',
+    bottom: -ARROW_SIZE,
+    left: 24,
+    width: 0,
+    height: 0,
+    borderLeftWidth: ARROW_SIZE,
+    borderRightWidth: ARROW_SIZE,
+    borderTopWidth: ARROW_SIZE,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: '#2C2C2E',
   },
 });

@@ -25,7 +25,7 @@ const GAP = 8;
 const PADDING = 8;
 
 const getRows = (height: number): number => {
-  if (height < 1000) return 4;
+  if (height < 800) return 4;
   if (height < 1200) return 5;
   return 6;
 };
@@ -136,8 +136,9 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   const cells: Cell[] = [{ kind: 'actions' }];
   pageItems.forEach((item) => cells.push({ kind: 'order', data: item }));
-  if (needsPagination) cells.push({ kind: 'pagination' });
   while (cells.length < CELLS_PER_PAGE) cells.push({ kind: 'empty' });
+  // Always place pagination at the last cell (bottom-right)
+  if (needsPagination) cells[CELLS_PER_PAGE - 1] = { kind: 'pagination' };
 
   const rows: Cell[][] = [];
   for (let r = 0; r < ROWS; r++) {
@@ -163,10 +164,10 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 }
               }}
             >
-              <Feather name="chevron-left" size={22 * scale} color={theme.colors.textPrimary} />
+              <Feather name="chevron-left" size={22} color={theme.colors.textPrimary} />
             </TouchableOpacity>
             <View style={styles.filterCenter}>
-              <Text style={[styles.filterLabel, { fontSize: 15 * scale }]}>
+              <Text style={[styles.filterLabel, { fontSize: 16 }]}>
                 {isOrders
                   ? (waiterFilterIdx < 0 ? 'Все официанты' : (waiters[waiterFilterIdx]?.name || 'Все официанты'))
                   : (venueZones[zoneIdx]?.name || 'Загрузка...')}
@@ -183,15 +184,15 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 }
               }}
             >
-              <Feather name="chevron-right" size={22 * scale} color={theme.colors.textPrimary} />
+              <Feather name="chevron-right" size={22} color={theme.colors.textPrimary} />
             </TouchableOpacity>
           </View>
 
           {searchActive ? (
             <View style={[styles.searchInputWrap, { flex: 2 }]}>
-              <SearchIcon size={20 * scale} color={theme.colors.textSecondary} />
+              <SearchIcon size={20} color={theme.colors.textSecondary} />
               <TextInput
-                style={[styles.searchInput, { fontSize: 15 * scale }]}
+                style={[styles.searchInput, { fontSize: 16 }]}
                 placeholder="Номер, стол, официант..."
                 placeholderTextColor={theme.colors.textSecondary}
                 value={searchQuery}
@@ -202,7 +203,7 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 onPress={() => { setSearchActive(false); setSearchQuery(''); setPage(0); }}
                 style={styles.searchCloseBtn}
               >
-                <Feather name="x" size={20 * scale} color={theme.colors.textSecondary} />
+                <Feather name="x" size={20} color={theme.colors.textSecondary} />
               </TouchableOpacity>
             </View>
           ) : (
@@ -211,16 +212,16 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 style={[styles.reportBtn, { flex: 1, marginRight: GAP }]}
                 onPress={() => setReportVisible(true)}
               >
-                <Text style={[styles.reportLabel, { fontSize: 14 * scale }]}>Отчет</Text>
+                <Text style={[styles.reportLabel, { fontSize: 14 }]}>Отчет</Text>
               </TouchableOpacity>
 
               <View style={[styles.headerRight, { flex: 1 }]}>
                 <TouchableOpacity style={[styles.bellBtn, { marginRight: GAP }]}>
-                  <NotificationIcon size={28 * scale} color="#FF9800" />
-                  <Text style={[styles.bellBadge, { fontSize: 14 * scale }]}>2</Text>
+                  <NotificationIcon size={28} color="#FF9800" />
+                  <Text style={[styles.bellBadge, { fontSize: 14 }]}>2</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.searchBtn} onPress={() => setSearchActive(true)}>
-                  <SearchIcon size={28 * scale} color={theme.colors.textPrimary} />
+                  <SearchIcon size={28} color={theme.colors.textPrimary} />
                 </TouchableOpacity>
               </View>
             </>
@@ -244,12 +245,12 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                     {cell.kind === 'actions' && (
                       <View style={styles.actionsCell}>
                         <TouchableOpacity style={[styles.actionHalf, { marginRight: GAP }]} onPress={handleNewOrder}>
-                          <Feather name="plus" size={24 * scale} color="#fff" />
-                          <Text style={[styles.actionLabel, { fontSize: 13 * scale }]}>Новый{'\n'}заказ</Text>
+                          <Feather name="plus" size={24} color="#fff" />
+                          <Text style={[styles.actionLabel, { fontSize: 14 }]}>Новый{'\n'}заказ</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.actionHalf} onPress={handleQuickCheck}>
-                          <Feather name="plus" size={24 * scale} color="#fff" />
-                          <Text style={[styles.actionLabel, { fontSize: 13 * scale }]}>Быстрый{'\n'}чек</Text>
+                          <Feather name="plus" size={24} color="#fff" />
+                          <Text style={[styles.actionLabel, { fontSize: 14 }]}>Быстрый{'\n'}чек</Text>
                         </TouchableOpacity>
                       </View>
                     )}
@@ -265,7 +266,7 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                           onPress={handlePageUp}
                           disabled={page === 0}
                         >
-                          <Feather name="chevron-up" size={28 * scale} color={page === 0 ? '#999' : theme.colors.tabActive} />
+                          <Feather name="chevron-up" size={28} color={page === 0 ? '#999' : theme.colors.tabActive} />
                         </TouchableOpacity>
                         <View style={styles.pageDivider} />
                         <TouchableOpacity
@@ -273,7 +274,7 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                           onPress={handlePageDown}
                           disabled={page >= totalPages - 1}
                         >
-                          <Feather name="chevron-down" size={28 * scale} color={page >= totalPages - 1 ? '#999' : theme.colors.tabActive} />
+                          <Feather name="chevron-down" size={28} color={page >= totalPages - 1 ? '#999' : theme.colors.tabActive} />
                         </TouchableOpacity>
                       </View>
                     )}

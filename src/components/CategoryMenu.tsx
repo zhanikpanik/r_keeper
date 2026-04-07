@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceLight,
     marginBottom: GAP,
   },
-  headerText: { color: theme.colors.textPrimary, fontSize: 15, fontWeight: '600' },
+  headerText: { color: theme.colors.textPrimary, fontSize: 18, fontWeight: '600' },
 
   grid: { flex: 1 },
   row: { flex: 1, flexDirection: 'row' },
@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
   },
   categoryText: {
     color: theme.colors.textPrimary,
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '500',
     textAlign: 'center',
   },

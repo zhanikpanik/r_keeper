@@ -17,13 +17,12 @@ interface Props {
   isQuickCheck?: boolean;
   onTablePress?: () => void;
   onWaiterPress?: () => void;
-  onCommentPress?: () => void;
 }
 
 export const PosHeader: React.FC<Props> = ({
   onBack, searchMode, searchQuery, onSearchChange, onSearchOpen, onSearchClose,
   tableNumber, waiter, guestCount, isQuickCheck,
-  onTablePress, onWaiterPress, onCommentPress,
+  onTablePress, onWaiterPress,
 }) => {
   const time = `${new Date().getHours().toString().padStart(2, '0')}:${new Date().getMinutes().toString().padStart(2, '0')}`;
 
@@ -43,7 +42,7 @@ export const PosHeader: React.FC<Props> = ({
                 <Feather name="chevron-down" size={14} color={theme.colors.textSecondary} />
               </TouchableOpacity>
 
-              <TouchableOpacity style={[styles.chip, { marginLeft: 6 }]} onPress={onWaiterPress} activeOpacity={0.7}>
+              <TouchableOpacity style={[styles.chip, { marginLeft: 2 }]} onPress={onWaiterPress} activeOpacity={0.7}>
                 <Text style={styles.chipLabel}>Официант</Text>
                 <Text style={styles.chipValue}>{waiter}</Text>
                 <Feather name="chevron-down" size={14} color={theme.colors.textSecondary} />
@@ -106,10 +105,6 @@ export const PosHeader: React.FC<Props> = ({
 
       {/* Right actions */}
       <View style={styles.rightActions}>
-        <TouchableOpacity style={styles.iconButton} onPress={onCommentPress}>
-          <Feather name="message-square" size={20} color={theme.colors.textPrimary} />
-        </TouchableOpacity>
-
         <TouchableOpacity style={styles.iconButton}>
           <NotificationIcon size={22} color={theme.colors.textPrimary} />
         </TouchableOpacity>
@@ -142,7 +137,7 @@ const styles = StyleSheet.create({
   },
   backText: {
     color: theme.colors.textPrimary,
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: 'bold',
   },
 
@@ -163,7 +158,7 @@ const styles = StyleSheet.create({
   },
   chipLabel: {
     color: theme.colors.textSecondary,
-    fontSize: 12,
+    fontSize: 14,
   },
   chipValue: {
     color: theme.colors.textPrimary,
@@ -185,7 +180,7 @@ const styles = StyleSheet.create({
   },
   chipTextSub: {
     color: theme.colors.textSecondary,
-    fontSize: 13,
+    fontSize: 14,
   },
 
   // Right actions

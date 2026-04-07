@@ -22,7 +22,9 @@ interface Props {
 export const LockScreen: React.FC<Props> = ({ navigation, route }) => {
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(false);
   const waiters = useVenueStore((s) => s.waiters);
+  const fetchVenue = useVenueStore((s) => s.fetchVenue);
   const setCurrentUser = useShiftStore((s) => s.setCurrentUser);
   const currentUser = useShiftStore((s) => s.currentUser);
 
@@ -34,8 +36,17 @@ export const LockScreen: React.FC<Props> = ({ navigation, route }) => {
     const newPin = pin + digit;
 
     if (newPin.length === PIN_LENGTH) {
+      // Make sure waiters are loaded
+      let currentWaiters = waiters;
+      if (currentWaiters.length === 0) {
+        setLoading(true);
+        await fetchVenue();
+        currentWaiters = useVenueStore.getState().waiters;
+        setLoading(false);
+      }
+
       // Find user by PIN
-      const user = waiters.find(w => w.pin === newPin);
+      const user = currentWaiters.find(w => w.pin === newPin);
 
       if (user) {
         setPin('');
@@ -98,7 +109,7 @@ export const LockScreen: React.FC<Props> = ({ navigation, route }) => {
 
           <Text style={styles.title}>r_keeper</Text>
           <Text style={styles.subtitle}>
-            {isLockMode ? 'Экран заблокирован' : 'Введите PIN-код'}
+            {loading ? 'Загрузка...' : isLockMode ? 'Экран заблокирован' : 'Введите PIN-код'}
           </Text>
 
           <View style={styles.dotsRow}>{dots}</View>

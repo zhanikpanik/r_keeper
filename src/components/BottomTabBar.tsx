@@ -18,7 +18,7 @@ export const BottomTabBar: React.FC<Props> = ({ activeTab, onTabChange, onMenuPr
       <View style={styles.container}>
         {/* Menu Button */}
         <TouchableOpacity style={styles.sideButton} onPress={onMenuPress}>
-          <Feather name="menu" size={24 * scale} color={theme.colors.textPrimary} />
+          <Feather name="menu" size={24} color={theme.colors.textPrimary} />
         </TouchableOpacity>
         
         {/* Center Tabs */}
@@ -28,7 +28,7 @@ export const BottomTabBar: React.FC<Props> = ({ activeTab, onTabChange, onMenuPr
             onPress={() => onTabChange('orders')}
             activeOpacity={0.8}
           >
-            <Text style={[styles.tabText, activeTab === 'orders' && styles.activeTabText, { fontSize: 16 * scale }]}>
+            <Text style={[styles.tabText, activeTab === 'orders' && styles.activeTabText, { fontSize: 16 }]}>
               Заказы
             </Text>
           </TouchableOpacity>
@@ -38,7 +38,7 @@ export const BottomTabBar: React.FC<Props> = ({ activeTab, onTabChange, onMenuPr
             onPress={() => onTabChange('tables')}
             activeOpacity={0.8}
           >
-            <Text style={[styles.tabText, activeTab === 'tables' && styles.activeTabText, { fontSize: 16 * scale }]}>
+            <Text style={[styles.tabText, activeTab === 'tables' && styles.activeTabText, { fontSize: 16 }]}>
               Столы
             </Text>
           </TouchableOpacity>
@@ -46,7 +46,7 @@ export const BottomTabBar: React.FC<Props> = ({ activeTab, onTabChange, onMenuPr
         
         {/* Lock Button */}
         <TouchableOpacity style={styles.sideButton} onPress={onLockPress}>
-          <LockIcon size={30 * scale} color={theme.colors.textPrimary} />
+          <LockIcon size={30} color={theme.colors.textPrimary} />
         </TouchableOpacity>
       </View>
     </View>

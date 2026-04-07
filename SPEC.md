@@ -33,7 +33,7 @@
 - [x] Auto-save: every mutation syncs to orders[] immediately
 - [x] Footer: Пречек | Оплата | Скидки | Ввести код | Готово (columns match content above)
 - [x] Footer: item selected → Отмена + Готово
-- [x] OrderPanel: scroll via up/down buttons (disabled when nothing to scroll)
+- [x] OrderPanel: touch scroll + floating comment button (replaced up/down buttons)
 - [x] Dynamic grid rows/cols based on screen size
 - [x] Quantity numpad matching reference design
 - [x] Order cards: Gorbunova-style clean typography, scaled text
@@ -47,10 +47,25 @@
 - [ ] Floor plan editor — drag & drop tables
 - [ ] E-Kassa integration (fiscal receipts)
 
+### Done (POS improvements)
+- [x] Комментарий к блюду — dish-level comment with presets (replaced "Перенести" in actions)
+- [x] Order comment — floating button in order panel, shows comment text when added
+- [x] Comment icon removed from header (moved to order panel)
+
+### Client & Guest System (planned)
+- [ ] **Database**: `clients` table (name, phone, card_number, discount_percent, tier, total_visits, total_spent)
+- [ ] **Database**: `client_visits` table (client_id, order_id, visit_date, amount_spent)
+- [ ] **Header chip**: [👤 Клиент ▾] — tap opens ClientSearchModal
+- [ ] **ClientSearchModal**: search by phone/name/card, recent clients, add new client
+- [ ] **Client attached**: chip shows name + discount (e.g. "Петров А. -10%")
+- [ ] **Auto-discount**: client tier discount auto-applies to order total
+- [ ] **Guest tabs**: in order panel — switch between guests, assign dishes to guests
+- [ ] **Bill splitting**: split by guest / equal split / custom split (PaymentScreen)
+- [ ] **Visit tracking**: record visit + amount on order close/payment
+- [ ] Discount stacking rules: client discount vs manual discount (decide: stack or override)
+
 ### Later
-- [ ] Комментарий — add note to a dish
 - [ ] Скидка — discount on specific item
-- [ ] Guest feature (По гостям, + Гость, Курс)
 - [ ] Bell button: notifications (kitchen ready, alerts)
 - [ ] Скидки и наценки flow
 - [ ] Ввести код flow

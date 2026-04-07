@@ -9,6 +9,7 @@ const SIZE_W: Record<string, number> = { small: 1, regular: 2, wide: 3, tall: 1,
 const SIZE_H: Record<string, number> = { small: 1, regular: 1, wide: 1, tall: 2, bar: 3 };
 
 const GAP = 8;
+const PADDING = 16;
 const formatAmount = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 
 interface Props {
@@ -39,24 +40,29 @@ export const FloorPlan: React.FC<Props> = ({ onTablePress, zoneIdx = 0 }) => {
     return theme.colors.orderActive;
   };
 
-  const getBorderRadius = (size: string, w: number, h: number): number => {
-    const minDim = Math.min(w, h);
-    if (size === 'small') return minDim * 0.2;
-    return minDim * 0.2;
-  };
+  // Auto-calculate grid bounds from actual table positions
+  let maxCol = zone.cols;
+  let maxRow = zone.rows;
+  zone.tables.forEach((t) => {
+    const sw = SIZE_W[t.size];
+    const sh = SIZE_H[t.size];
+    maxCol = Math.max(maxCol, t.col + sw);
+    maxRow = Math.max(maxRow, t.row + sh);
+  });
 
-  // Square cells
-  const cellFromW = canvasSize.w > 0 ? (canvasSize.w - (zone.cols - 1) * GAP) / zone.cols : 0;
-  const cellFromH = canvasSize.h > 0 ? (canvasSize.h - (zone.rows - 1) * GAP) / zone.rows : 0;
+  // Square cells with padding
+  const availW = canvasSize.w - PADDING * 2;
+  const availH = canvasSize.h - PADDING * 2;
+  const cellFromW = availW > 0 ? (availW - (maxCol - 1) * GAP) / maxCol : 0;
+  const cellFromH = availH > 0 ? (availH - (maxRow - 1) * GAP) / maxRow : 0;
   const cellSize = Math.min(cellFromW, cellFromH);
 
   return (
     <View style={styles.container}>
-      {/* Canvas */}
       <View style={styles.canvas} onLayout={handleLayout}>
         {cellSize > 0 && (() => {
-          const gridW = zone.cols * cellSize + (zone.cols - 1) * GAP;
-          const gridH = zone.rows * cellSize + (zone.rows - 1) * GAP;
+          const gridW = maxCol * cellSize + (maxCol - 1) * GAP;
+          const gridH = maxRow * cellSize + (maxRow - 1) * GAP;
           const offsetX = (canvasSize.w - gridW) / 2;
           const offsetY = (canvasSize.h - gridH) / 2;
 
@@ -71,8 +77,6 @@ export const FloorPlan: React.FC<Props> = ({ onTablePress, zoneIdx = 0 }) => {
             const top = offsetY + table.row * (cellSize + GAP);
             const width = cellSize * sw + GAP * (sw - 1);
             const height = cellSize * sh + GAP * (sh - 1);
-
-            const radius = getBorderRadius(table.size, width, height);
             const fontSize = Math.max(16, Math.min(36, cellSize * 0.35));
 
             return (
@@ -88,7 +92,7 @@ export const FloorPlan: React.FC<Props> = ({ onTablePress, zoneIdx = 0 }) => {
                     width,
                     height,
                     backgroundColor: bgColor,
-                    borderRadius: radius,
+                    borderRadius: 8,
                   },
                 ]}
               >

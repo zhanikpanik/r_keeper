@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
   },
   headerText: {
     color: theme.colors.textPrimary,
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
   },
   body: {
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
   },
   displayValue: {
     color: theme.colors.textPrimary,
-    fontSize: 48,
+    fontSize: 28,
     fontWeight: '300',
   },
   numpadRow: {

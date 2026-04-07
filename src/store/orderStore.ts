@@ -148,7 +148,7 @@ const loadOrdersFromSupabase = async (): Promise<Order[]> => {
       .from('orders')
       .select('*')
       .eq('venue_id', VENUE_ID)
-      .in('status', ['active', 'alert'])
+      .in('status', ['active', 'alert', 'paid'])
       .order('opened_at');
 
     if (orderError) throw orderError;
@@ -238,7 +238,7 @@ const syncToOrders = (state: OrderStoreState): Order[] => {
           tableNumber: state.tableNumber,
           tableId: state.tableId,
           isQuickCheck: state.isQuickCheck,
-          status: total > 0 ? 'active' as const : o.status,
+          status: o.status === 'paid' || o.status === 'inactive' ? o.status : (total > 0 ? 'active' as const : o.status),
         }
       : o
   );
@@ -284,6 +284,7 @@ interface OrderStoreState {
   setActiveModifierGroup: (groupId: string) => void;
   toggleModifier: (modifier: Modifier) => void;
   assignItemToGuest: (itemId: string, guestId: string | null) => void;
+  setItemComment: (itemId: string, comment: string) => void;
 }
 
 export const useOrderStore = create<OrderStoreState>((set, get) => ({
@@ -572,6 +573,16 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
     set((state) => {
       const newItems = state.items.map(item =>
         item.id === itemId ? { ...item, guestId } : item
+      );
+      const newState = { ...state, items: newItems };
+      return { items: newItems, orders: syncToOrders(newState) };
+    });
+  },
+
+  setItemComment: (itemId: string, comment: string) => {
+    set((state) => {
+      const newItems = state.items.map(item =>
+        item.id === itemId ? { ...item, comment: comment || undefined } : item
       );
       const newState = { ...state, items: newItems };
       return { items: newItems, orders: syncToOrders(newState) };

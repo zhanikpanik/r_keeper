@@ -104,14 +104,14 @@ const styles = StyleSheet.create({
   },
   productName: {
     color: '#fff',
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 4,
   },
   productPrice: {
     color: 'rgba(255,255,255,0.7)',
-    fontSize: 14,
+    fontSize: 16,
   },
   hintWrap: {
     padding: 40,

@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#191919',
     marginBottom: GAP,
   },
-  headerText: { color: theme.colors.textPrimary, fontSize: 15, fontWeight: '600' },
+  headerText: { color: theme.colors.textPrimary, fontSize: 18, fontWeight: '600' },
 
   grid: { flex: 1 },
   row: { flex: 1, flexDirection: 'row' },
@@ -101,14 +101,14 @@ const styles = StyleSheet.create({
   },
   productName: {
     color: '#fff',
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 2,
   },
   productPrice: {
     color: 'rgba(255,255,255,0.85)',
-    fontSize: 12,
+    fontSize: 14,
   },
   pageBtn: {
     flex: 1,

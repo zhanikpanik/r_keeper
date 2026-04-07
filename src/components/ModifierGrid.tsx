@@ -7,6 +7,7 @@ import { modifierGroups } from '../mocks/menuData';
 import { Modifier } from '../types';
 import { QuantityNumpad } from './QuantityNumpad';
 import { GuestPicker } from './GuestPicker';
+import { DishCommentPanel } from './DishCommentPanel';
 
 const COLS = 3;
 const ROWS = 5;
@@ -25,6 +26,11 @@ export const ModifierGrid: React.FC = () => {
   // Guest mode → guest picker
   if (activeAction === 'guest' && selectedItem) {
     return <GuestPicker />;
+  }
+
+  // Comment mode → dish comment panel
+  if (activeAction === 'comment' && selectedItem) {
+    return <DishCommentPanel />;
   }
 
   // Modifier mode
@@ -125,7 +131,7 @@ const styles = StyleSheet.create({
     marginBottom: GAP,
   },
   headerBack: { width: 44, justifyContent: 'center', alignItems: 'center' },
-  headerText: { flex: 1, color: theme.colors.textPrimary, fontSize: 15, fontWeight: '600', textAlign: 'center' },
+  headerText: { flex: 1, color: theme.colors.textPrimary, fontSize: 18, fontWeight: '600', textAlign: 'center' },
 
   grid: { flex: 1 },
   row: { flex: 1, flexDirection: 'row' },
@@ -143,7 +149,7 @@ const styles = StyleSheet.create({
   },
   modText: {
     color: theme.colors.textPrimary,
-    fontSize: 14,
+    fontSize: 16,
     textAlign: 'center',
   },
   modTextActive: {

@@ -49,14 +49,14 @@ export const PaymentScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
       useShiftStore.getState().recordPayment(method, total);
     }
 
-    // Update order status to paid
+    // Update order status to paid and sync to Supabase
     useOrderStore.setState((state) => ({
       orders: state.orders.map(o =>
         o.id === currentOrderId ? { ...o, status: 'paid' as const } : o
       ),
     }));
 
-    // Close order and go back
+    // Close order (will sync the paid status to Supabase)
     useOrderStore.getState().closeOrder();
     navigation?.navigate('Orders');
   };

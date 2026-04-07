@@ -62,14 +62,13 @@ export const PosScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
           isQuickCheck={isQuickCheck}
           onTablePress={() => setTablePickerVisible(true)}
           onWaiterPress={() => setWaiterPickerVisible(true)}
-          onCommentPress={() => setCommentVisible(true)}
         />
 
         {/* ═══ MAIN CONTENT ═══ */}
         <View style={styles.mainRow}>
           {/* ── Left: Order Panel (always visible) ── */}
           <View style={styles.leftCol}>
-            <OrderPanel />
+            <OrderPanel onCommentPress={() => setCommentVisible(true)} />
           </View>
 
           <View style={{ width: COL_GAP }} />
@@ -172,11 +171,12 @@ export const PosScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
 const formatAmount = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: theme.colors.background },
-  root: { flex: 1, backgroundColor: '#000000' },
+  safeArea: { flex: 1, minHeight: 0, overflow: 'hidden', backgroundColor: theme.colors.background },
+  root: { flex: 1, minHeight: 0, overflow: 'hidden', backgroundColor: '#000000' },
 
   mainRow: {
     flex: 1,
+    minHeight: 0,
     flexDirection: 'row',
     paddingHorizontal: PADDING,
     paddingTop: GAP,
@@ -184,6 +184,7 @@ const styles = StyleSheet.create({
   },
   leftCol: {
     flex: 0.35,
+    minHeight: 0,
     overflow: 'hidden',
     borderRadius: theme.borderRadius,
   },
@@ -228,7 +229,7 @@ const styles = StyleSheet.create({
   },
   paymentLabel: {
     color: '#fff',
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
   },
   paymentAmount: {
@@ -257,7 +258,7 @@ const styles = StyleSheet.create({
   },
   secondaryText: {
     color: theme.colors.textPrimary,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '500',
     textAlign: 'center',
   },

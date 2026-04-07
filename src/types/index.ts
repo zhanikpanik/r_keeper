@@ -29,6 +29,7 @@ export interface OrderItem {
   quantity: number;
   guestId: string | null; // null = belongs to general "Заказ" section
   modifiers: Modifier[];
+  comment?: string;
 }
 
 export type OrderStatus = 'active' | 'paid' | 'alert' | 'inactive';
@@ -66,7 +67,7 @@ export interface Table {
   timeSeated?: string;
 }
 
-export type ActiveAction = 'modifiers' | 'quantity' | 'guest' | 'course' | 'combo' | 'move' | 'delete' | null;
+export type ActiveAction = 'modifiers' | 'quantity' | 'guest' | 'course' | 'combo' | 'move' | 'comment' | 'delete' | null;
 
 export interface Shift {
   id: string;

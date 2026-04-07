@@ -13,9 +13,16 @@ export const OrderItem: React.FC<Props> = ({ item, isSelected }) => {
 
   return (
     <View style={[styles.container, isSelected && styles.selectedContainer]}>
-      <Text style={[styles.name, isSelected && styles.selectedText]} numberOfLines={1}>
-        {item.product.name}
-      </Text>
+      <View style={styles.nameCol}>
+        <Text style={[styles.name, isSelected && styles.selectedText]} numberOfLines={1}>
+          {item.product.name}
+        </Text>
+        {!!item.comment && (
+          <Text style={[styles.comment, isSelected && styles.commentSelected]} numberOfLines={1}>
+            {item.comment}
+          </Text>
+        )}
+      </View>
       
       <Text style={[styles.quantity, isSelected && styles.selectedText]}>
         {item.quantity}
@@ -42,20 +49,31 @@ const styles = StyleSheet.create({
   selectedContainer: {
     backgroundColor: theme.colors.orderItemActive,
   },
-  name: {
+  nameCol: {
     flex: 1,
+  },
+  name: {
     color: theme.colors.textPrimary,
-    fontSize: 14,
+    fontSize: 16,
+  },
+  comment: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  commentSelected: {
+    color: theme.colors.orderItemActiveText,
+    opacity: 0.7,
   },
   quantity: {
     color: theme.colors.textPrimary,
-    fontSize: 14,
+    fontSize: 16,
     width: 30,
     textAlign: 'center',
   },
   price: {
     color: theme.colors.textPrimary,
-    fontSize: 14,
+    fontSize: 16,
     width: 60,
     textAlign: 'right',
   },
