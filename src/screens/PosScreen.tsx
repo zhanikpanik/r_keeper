@@ -10,15 +10,14 @@ import { ModifierGrid } from '../components/ModifierGrid';
 import { SearchMode } from '../components/SearchMode';
 import { useOrderStore } from '../store/orderStore';
 import { TablePickerModal } from '../components/TablePickerModal';
-import { WaiterPickerModal } from '../components/WaiterPickerModal';
 import { CommentModal } from '../components/CommentModal';
 
-const GAP = 4;
+const GAP = 8;
 const COL_GAP = 8;
 const PADDING = 8;
 
 export const PosScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
-  const { selectedItemId, items, getTotal, closeOrder, selectItem, tableNumber, guests, isQuickCheck, currentOrderId } = useOrderStore();
+  const { selectedItemId, items, getTotal, closeOrder, deleteOrder, tableNumber, currentOrderId } = useOrderStore();
   const currentOrder = useOrderStore((s) => s.orders.find(o => o.id === s.currentOrderId));
   const selectedItem = items.find(i => i.id === selectedItemId);
   const isItemSelected = !!selectedItem;
@@ -26,11 +25,16 @@ export const PosScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const [searchMode, setSearchMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [tablePickerVisible, setTablePickerVisible] = useState(false);
-  const [waiterPickerVisible, setWaiterPickerVisible] = useState(false);
   const [commentVisible, setCommentVisible] = useState(false);
 
   const handleBack = () => {
-    closeOrder();
+    const comment = (currentOrder as any)?.comment || '';
+    const isEmpty = items.length === 0 && !tableNumber && !comment;
+    if (isEmpty && currentOrderId) {
+      deleteOrder(currentOrderId);
+    } else {
+      closeOrder();
+    }
     navigation?.navigate('Orders');
   };
 
@@ -57,18 +61,25 @@ export const PosScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
           onSearchOpen={handleSearchOpen}
           onSearchClose={handleSearchClose}
           tableNumber={tableNumber}
-          waiter={currentOrder?.waiter || 'Иванов'}
-          guestCount={guests.length}
-          isQuickCheck={isQuickCheck}
           onTablePress={() => setTablePickerVisible(true)}
-          onWaiterPress={() => setWaiterPickerVisible(true)}
         />
 
         {/* ═══ MAIN CONTENT ═══ */}
         <View style={styles.mainRow}>
-          {/* ── Left: Order Panel (always visible) ── */}
+          {/* ── Left: Order Panel + Payment buttons ── */}
           <View style={styles.leftCol}>
-            <OrderPanel onCommentPress={() => setCommentVisible(true)} />
+            <View style={styles.orderPanelWrap}>
+              <OrderPanel onCommentPress={() => setCommentVisible(true)} />
+            </View>
+            <View style={styles.paymentRow}>
+              <TouchableOpacity style={styles.precheckBtn}>
+                <Text style={styles.precheckText}>Пречек</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.paymentBtn} onPress={() => navigation?.navigate('Payment')}>
+                <Text style={styles.paymentLabel}>Оплата</Text>
+                <Text style={styles.paymentAmount}>{formatAmount(total)} ₽</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View style={{ width: COL_GAP }} />
@@ -96,69 +107,11 @@ export const PosScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
             </>
           )}
         </View>
-
-        {/* ═══ FOOTER ═══ */}
-        <View style={[styles.footerRow, { paddingHorizontal: PADDING }]}>
-          {/* ── Left: Оплата + Пречек (matches order panel) ── */}
-          <View style={styles.footerLeft}>
-            <TouchableOpacity style={styles.precheckBtn}>
-              <Text style={styles.precheckText}>Пречек</Text>
-            </TouchableOpacity>
-            <View style={{ width: GAP }} />
-            <TouchableOpacity style={styles.paymentBtn} onPress={() => navigation?.navigate('Payment')}>
-              <Text style={styles.paymentLabel}>Оплата</Text>
-              <Text style={styles.paymentAmount}>{formatAmount(total)} ₽</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={{ width: GAP }} />
-
-          {isItemSelected ? (
-            <>
-              {/* ── Middle + Right: Отмена + Готово (item editing) ── */}
-              <View style={styles.footerMid}>
-                <TouchableOpacity style={styles.cancelBtn} onPress={() => selectItem(null)}>
-                  <Text style={styles.cancelText}>Отмена</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={{ width: GAP }} />
-              <View style={styles.footerRight}>
-                <TouchableOpacity style={styles.doneBtn} onPress={() => selectItem(null)}>
-                  <Text style={styles.doneText}>Готово</Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          ) : (
-            <>
-              {/* ── Middle: Скидки + Ввести код (matches categories) ── */}
-              <View style={styles.footerMid}>
-                <TouchableOpacity style={styles.secondaryBtn}>
-                  <Text style={styles.secondaryText}>Скидки{'\n'}и наценки</Text>
-                </TouchableOpacity>
-                <View style={{ width: GAP }} />
-                <TouchableOpacity style={styles.secondaryBtn}>
-                  <Text style={styles.secondaryText}>Ввести код</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={{ width: GAP }} />
-              {/* ── Right: Готово (matches products) ── */}
-              <View style={styles.footerRight}>
-                <TouchableOpacity style={styles.doneBtn} onPress={handleBack}>
-                  <Text style={styles.doneText}>Готово</Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          )}
-        </View>
       </View>
 
       <TablePickerModal
         visible={tablePickerVisible}
         onClose={() => setTablePickerVisible(false)}
-      />
-      <WaiterPickerModal
-        visible={waiterPickerVisible}
-        onClose={() => setWaiterPickerVisible(false)}
       />
       <CommentModal
         visible={commentVisible}
@@ -171,15 +124,14 @@ export const PosScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
 const formatAmount = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, minHeight: 0, overflow: 'hidden', backgroundColor: theme.colors.background },
-  root: { flex: 1, minHeight: 0, overflow: 'hidden', backgroundColor: '#000000' },
+  safeArea: { flex: 1, minHeight: 0, overflow: 'hidden', backgroundColor: '#1A1A1A' },
+  root: { flex: 1, minHeight: 0, overflow: 'hidden', backgroundColor: '#1A1A1A' },
 
   mainRow: {
     flex: 1,
     minHeight: 0,
     flexDirection: 'row',
     paddingHorizontal: PADDING,
-    paddingTop: GAP,
     paddingBottom: COL_GAP,
   },
   leftCol: {
@@ -187,6 +139,17 @@ const styles = StyleSheet.create({
     minHeight: 0,
     overflow: 'hidden',
     borderRadius: theme.borderRadius,
+    flexDirection: 'column',
+  },
+  orderPanelWrap: {
+    flex: 1,
+    overflow: 'hidden',
+  },
+  paymentRow: {
+    height: 56,
+    flexDirection: 'row',
+    gap: GAP,
+    marginTop: GAP,
   },
   midCol: {
     flex: 0.25,
@@ -202,22 +165,6 @@ const styles = StyleSheet.create({
     flex: 0.65,
   },
 
-  footerRow: {
-    height: 56,
-    flexDirection: 'row',
-    paddingVertical: GAP,
-  },
-  footerLeft: {
-    flex: 0.35,
-    flexDirection: 'row',
-  },
-  footerMid: {
-    flex: 0.25,
-    flexDirection: 'row',
-  },
-  footerRight: {
-    flex: 0.40,
-  },
   paymentBtn: {
     flex: 1,
     flexDirection: 'row',
@@ -247,43 +194,6 @@ const styles = StyleSheet.create({
   precheckText: {
     color: theme.colors.textPrimary,
     fontSize: 14,
-    fontWeight: '600',
-  },
-  secondaryBtn: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: theme.colors.surfaceLight,
-    borderRadius: theme.borderRadius,
-  },
-  secondaryText: {
-    color: theme.colors.textPrimary,
-    fontSize: 14,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  cancelBtn: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#D32F2F',
-    borderRadius: theme.borderRadius,
-  },
-  cancelText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  doneBtn: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#00C853',
-    borderRadius: theme.borderRadius,
-  },
-  doneText: {
-    color: '#fff',
-    fontSize: 16,
     fontWeight: '600',
   },
 

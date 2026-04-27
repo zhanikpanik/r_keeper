@@ -14,11 +14,7 @@ const generateId = () => {
   });
 };
 
-// Format current time as HH:MM
-const now = () => {
-  const d = new Date();
-  return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
-};
+const now = () => new Date().toISOString();
 
 // ── Helper: calculate total from items ──
 const calcTotal = (items: OrderItem[]): number =>
@@ -73,7 +69,9 @@ const syncUpdateOrder = async (order: Order) => {
       table_number: order.tableNumber || null,
       zone_name: order.zone,
       total_amount: order.totalAmount,
+      is_quick_check: order.isQuickCheck || false,
       comment: (order as any).comment || null,
+      closed_at: (order.status === 'paid' || order.status === 'cancelled') ? new Date().toISOString() : null,
     }).eq('id', order.id);
     if (error) console.error('syncUpdateOrder:', error.message);
   } catch (e: any) {
@@ -83,27 +81,29 @@ const syncUpdateOrder = async (order: Order) => {
 
 const syncOrderItems = async (orderId: string, items: OrderItem[]) => {
   try {
-    // Delete existing items
-    await supabase.from('order_item_modifiers')
-      .delete()
-      .in('order_item_id', items.map(i => i.id).concat(['__none__']));
+    // Delete existing modifiers (only if there are items to avoid an empty .in() filter)
+    if (items.length > 0) {
+      await supabase.from('order_item_modifiers')
+        .delete()
+        .in('order_item_id', items.map(i => i.id));
+    }
 
     await supabase.from('order_items').delete().eq('order_id', orderId);
 
     // Insert current items
     if (items.length > 0) {
-      const orderItems = items.map(item => ({
+      const orderItems = items.map((item, idx) => ({
         id: item.id,
         order_id: orderId,
         product_id: item.product.id,
         product_name: item.product.name,
         product_price: item.product.price,
         quantity: item.quantity,
-        guest_number: item.guestId ? parseInt(item.guestId.replace(/\D/g, '')) || 1 : 1,
+        guest_number: item.guestId ? idx + 1 : 1,
       }));
 
-      const { error } = await supabase.from('order_items').insert(orderItems);
-      if (error) console.error('syncOrderItems insert:', error.message);
+      const { error } = await supabase.from('order_items').upsert(orderItems, { onConflict: 'id' });
+      if (error) console.error('syncOrderItems upsert:', error.message);
 
       // Insert modifiers
       const modRows: any[] = [];
@@ -118,7 +118,7 @@ const syncOrderItems = async (orderId: string, items: OrderItem[]) => {
         });
       });
       if (modRows.length > 0) {
-        await supabase.from('order_item_modifiers').insert(modRows);
+        await supabase.from('order_item_modifiers').upsert(modRows, { onConflict: 'id' });
       }
     }
   } catch (e: any) {
@@ -148,8 +148,8 @@ const loadOrdersFromSupabase = async (): Promise<Order[]> => {
       .from('orders')
       .select('*')
       .eq('venue_id', VENUE_ID)
-      .in('status', ['active', 'alert', 'paid'])
-      .order('opened_at');
+      .in('status', ['active', 'alert', 'paid', 'cancelled'])
+      .order('opened_at', { ascending: false });
 
     if (orderError) throw orderError;
     if (!orderData || orderData.length === 0) return [];
@@ -186,7 +186,8 @@ const loadOrdersFromSupabase = async (): Promise<Order[]> => {
         number: o.number,
         status: o.status as any,
         waiter: 'Иванов', // TODO: resolve from waiter_id
-        openedAt: new Date(o.opened_at).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' }),
+        openedAt: o.opened_at,
+        closedAt: o.closed_at || undefined,
         zone: o.zone_name || '',
         type: o.order_type || 'Общий',
         totalAmount: Number(o.total_amount),
@@ -199,7 +200,8 @@ const loadOrdersFromSupabase = async (): Promise<Order[]> => {
         })),
         items,
         isQuickCheck: o.is_quick_check || false,
-        comment: o.comment,
+        comment: o.comment || undefined,
+        closeReason: o.close_reason || undefined,
       } as Order;
     });
   } catch (e: any) {
@@ -210,14 +212,27 @@ const loadOrdersFromSupabase = async (): Promise<Order[]> => {
 
 // ═══ Sync helper: debounced item sync ═══
 let itemSyncTimeout: any = null;
+let pendingSync: { orderId: string; items: OrderItem[] } | null = null;
+
 const debouncedSyncItems = (orderId: string, items: OrderItem[]) => {
   if (itemSyncTimeout) clearTimeout(itemSyncTimeout);
+  pendingSync = { orderId, items };
   itemSyncTimeout = setTimeout(() => {
     syncOrderItems(orderId, items);
-    // Also update the order total
     const total = calcTotal(items);
     supabase.from('orders').update({ total_amount: total }).eq('id', orderId);
-  }, 500); // Wait 500ms after last change
+    pendingSync = null;
+  }, 500);
+};
+
+const flushPendingSync = () => {
+  if (itemSyncTimeout) clearTimeout(itemSyncTimeout);
+  if (pendingSync) {
+    syncOrderItems(pendingSync.orderId, pendingSync.items);
+    const total = calcTotal(pendingSync.items);
+    supabase.from('orders').update({ total_amount: total }).eq('id', pendingSync.orderId);
+    pendingSync = null;
+  }
 };
 
 // ═══ Store ═══
@@ -238,7 +253,7 @@ const syncToOrders = (state: OrderStoreState): Order[] => {
           tableNumber: state.tableNumber,
           tableId: state.tableId,
           isQuickCheck: state.isQuickCheck,
-          status: o.status === 'paid' || o.status === 'inactive' ? o.status : (total > 0 ? 'active' as const : o.status),
+          status: o.status === 'paid' || o.status === 'cancelled' ? o.status : (total > 0 ? 'active' as const : o.status),
         }
       : o
   );
@@ -310,7 +325,7 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
   // ── Create order for table ──
   createOrderForTable: (tableId: string, tableNumber: string, zone: string) => {
     const state = get();
-    const existing = state.orders.find(o => o.tableId === tableId && o.status !== 'inactive');
+    const existing = state.orders.find(o => o.tableId === tableId && o.status !== 'cancelled');
     if (existing) {
       get().openOrder(existing.id);
       return existing.id;
@@ -399,7 +414,7 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
   },
 
   getOrderForTable: (tableId: string) => {
-    return get().orders.find(o => o.tableId === tableId && o.status !== 'inactive');
+    return get().orders.find(o => o.tableId === tableId && o.status !== 'cancelled');
   },
 
   openOrder: (orderId: string) => {
@@ -421,13 +436,21 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
 
   closeOrder: () => {
     const state = get();
-    // Sync final state to Supabase before closing
+
+    // Flush any pending debounced sync immediately
+    flushPendingSync();
+
+    // Flush the latest items/total into the orders array before clearing editing state
+    const updatedOrders = syncToOrders(state);
+
+    // Sync final state to Supabase
     if (state.currentOrderId) {
-      const order = state.orders.find(o => o.id === state.currentOrderId);
+      const order = updatedOrders.find(o => o.id === state.currentOrderId);
       if (order) syncUpdateOrder(order);
     }
 
     set({
+      orders: updatedOrders,
       currentOrderId: null,
       items: [],
       guests: [],

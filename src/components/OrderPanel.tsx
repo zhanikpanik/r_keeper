@@ -1,10 +1,10 @@
-import React, { useRef, useState, useCallback, useMemo } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Pressable, StyleSheet, NativeSyntheticEvent, NativeScrollEvent, LayoutChangeEvent } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../theme/colors';
 import { OrderItem } from './OrderItem';
 import { useOrderStore } from '../store/orderStore';
-import { OrderItem as OrderItemType, Guest } from '../types';
+import { OrderItem as OrderItemType } from '../types';
 
 const SCROLL_STEP = 150;
 
@@ -13,43 +13,10 @@ interface Props {
 }
 
 export const OrderPanel: React.FC<Props> = ({ onCommentPress }) => {
-  const {
-    items, selectedItemId, guests, activeGuestId,
-    selectItem, getTotal, getGuestTotal, addGuest, setActiveGuest,
-  } = useOrderStore();
+  const { items, selectedItemId, selectItem, getTotal } = useOrderStore();
   const comment = useOrderStore((s) => (s.orders.find(o => o.id === s.currentOrderId) as any)?.comment || '');
 
   const total = getTotal();
-
-  // Guest navigation: null = "Все гости", string = specific guest
-  const [viewGuestId, setViewGuestId] = useState<string | null>(null);
-
-  // Guest nav: cycle through [null (all), guest1, guest2, ...]
-  const guestOptions: (string | null)[] = useMemo(
-    () => [null, ...guests.map(g => g.id)],
-    [guests]
-  );
-  const currentIdx = guestOptions.indexOf(viewGuestId);
-
-  const handlePrevGuest = () => {
-    const idx = currentIdx <= 0 ? guestOptions.length - 1 : currentIdx - 1;
-    const newId = guestOptions[idx];
-    setViewGuestId(newId);
-    setActiveGuest(newId);
-  };
-
-  const handleNextGuest = () => {
-    const idx = currentIdx >= guestOptions.length - 1 ? 0 : currentIdx + 1;
-    const newId = guestOptions[idx];
-    setViewGuestId(newId);
-    setActiveGuest(newId);
-  };
-
-  const getGuestLabel = (): string => {
-    if (viewGuestId === null) return 'Все гости';
-    const guest = guests.find(g => g.id === viewGuestId);
-    return guest?.name || 'Гость';
-  };
 
   // Scroll controls
   const scrollRef = useRef<ScrollView>(null);
@@ -81,69 +48,7 @@ export const OrderPanel: React.FC<Props> = ({ onCommentPress }) => {
     setViewHeight(e.nativeEvent.layout.height);
   }, []);
 
-  const handleAddGuest = () => {
-    addGuest();
-    // Switch to the new guest
-    const newGuestId = guests.length > 0 ? undefined : undefined; // will be set after addGuest
-    // We'll navigate to the new guest on next render
-    setTimeout(() => {
-      const state = useOrderStore.getState();
-      const lastGuest = state.guests[state.guests.length - 1];
-      if (lastGuest) {
-        setViewGuestId(lastGuest.id);
-        setActiveGuest(lastGuest.id);
-      }
-    }, 0);
-  };
-
-  // Build grouped items
-  const renderItems = () => {
-    if (viewGuestId !== null) {
-      // Show only this guest's items
-      const guestItems = items.filter(i => i.guestId === viewGuestId);
-      return guestItems.map(item => renderItem(item));
-    }
-
-    // "Все гости" — group by guest
-    const sections: { guest: Guest | null; items: OrderItemType[] }[] = [];
-
-    // Items with no guest (general order)
-    const generalItems = items.filter(i => !i.guestId);
-    if (generalItems.length > 0) {
-      sections.push({ guest: null, items: generalItems });
-    }
-
-    // Items per guest
-    guests.forEach(guest => {
-      const guestItems = items.filter(i => i.guestId === guest.id);
-      if (guestItems.length > 0) {
-        sections.push({ guest, items: guestItems });
-      }
-    });
-
-    // If no sections (no items yet), show nothing
-    if (sections.length === 0 && items.length > 0) {
-      // Fallback: show all items ungrouped
-      return items.map(item => renderItem(item));
-    }
-
-    return sections.map((section, si) => (
-      <View key={section.guest?.id || 'general'}>
-        <View style={styles.guestHeader}>
-          <Text style={styles.guestHeaderText}>
-            {section.guest?.name || 'Общий'}
-          </Text>
-          <Text style={styles.guestHeaderTotal}>
-            {section.items.reduce((sum, item) => {
-              const modPrice = item.modifiers.reduce((ms, m) => ms + m.price, 0);
-              return sum + (item.product.price + modPrice) * item.quantity;
-            }, 0)} ₽
-          </Text>
-        </View>
-        {section.items.map(item => renderItem(item))}
-      </View>
-    ));
-  };
+  const renderItems = () => items.map(item => renderItem(item));
 
   const renderItem = (item: OrderItemType) => (
     <View key={item.id}>
@@ -170,19 +75,6 @@ export const OrderPanel: React.FC<Props> = ({ onCommentPress }) => {
 
   return (
     <View style={styles.container}>
-      {/* Guest navigator */}
-      <View style={styles.guestNav}>
-        <TouchableOpacity style={styles.guestNavArrow} onPress={handlePrevGuest} activeOpacity={0.6}>
-          <Feather name="chevron-left" size={20} color={theme.colors.textPrimary} />
-        </TouchableOpacity>
-        <View style={styles.guestNavCenter}>
-          <Text style={styles.guestNavText}>{getGuestLabel()}</Text>
-        </View>
-        <TouchableOpacity style={styles.guestNavArrow} onPress={handleNextGuest} activeOpacity={0.6}>
-          <Feather name="chevron-right" size={20} color={theme.colors.textPrimary} />
-        </TouchableOpacity>
-      </View>
-
       {/* Order total row */}
       <View style={styles.orderHeader}>
         <Text style={styles.orderHeaderTitle}>Заказ</Text>
@@ -205,7 +97,7 @@ export const OrderPanel: React.FC<Props> = ({ onCommentPress }) => {
         </ScrollView>
       </View>
 
-      {/* Bottom: ↑ ↓ + Гость */}
+      {/* Bottom: ↑ ↓ scroll */}
       <View style={styles.bottomActions}>
         <TouchableOpacity
           style={[styles.scrollBtn, !canScrollUp && styles.btnDisabled]}
@@ -222,14 +114,6 @@ export const OrderPanel: React.FC<Props> = ({ onCommentPress }) => {
           activeOpacity={0.6}
         >
           <Feather name="chevron-down" size={22} color={canScrollDown ? theme.colors.textPrimary : theme.colors.textDisabled} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.addGuestBtn}
-          onPress={handleAddGuest}
-          activeOpacity={0.6}
-        >
-          <Feather name="plus" size={18} color={theme.colors.textPrimary} />
-          <Text style={styles.addGuestText}>Гость</Text>
         </TouchableOpacity>
       </View>
 
@@ -249,35 +133,10 @@ export const OrderPanel: React.FC<Props> = ({ onCommentPress }) => {
   );
 };
 
-const GAP = 2;
+const GAP = 8;
 
 const styles = StyleSheet.create({
   container: { flex: 1, minHeight: 0 },
-
-  // Guest navigator
-  guestNav: {
-    height: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.surfaceLight,
-    marginBottom: GAP,
-  },
-  guestNavArrow: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  guestNavCenter: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  guestNavText: {
-    color: theme.colors.textPrimary,
-    fontSize: 15,
-    fontWeight: '600',
-  },
 
   // Order header
   orderHeader: {
@@ -298,28 +157,6 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
     fontSize: 16,
     fontWeight: 'bold',
-  },
-
-  // Guest section headers
-  guestHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    backgroundColor: theme.colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.divider,
-  },
-  guestHeaderText: {
-    color: theme.colors.textSecondary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  guestHeaderTotal: {
-    color: theme.colors.textSecondary,
-    fontSize: 14,
-    fontWeight: '600',
   },
 
   // Items list
@@ -370,11 +207,10 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
 
-  // Bottom actions: ↑ ↓ + Гость
+  // Bottom actions: ↑ ↓
   bottomActions: {
     flexDirection: 'row',
     height: 44,
-    paddingHorizontal: 4,
     gap: GAP,
     marginTop: GAP,
   },
@@ -388,27 +224,10 @@ const styles = StyleSheet.create({
   btnDisabled: {
     opacity: 0.4,
   },
-  addGuestBtn: {
-    flex: 1.5,
-    flexDirection: 'row',
-    backgroundColor: theme.colors.surfaceLight,
-    borderRadius: theme.borderRadius,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 6,
-  },
-  addGuestText: {
-    color: theme.colors.textPrimary,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-
   // Comment button
   commentRow: {
     height: 44,
-    paddingHorizontal: 4,
     marginTop: GAP,
-    marginBottom: 4,
   },
   commentButton: {
     flex: 1,

@@ -77,12 +77,12 @@ export const ProductGrid: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: theme.colors.surface },
   header: {
     height: 44,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#191919',
+    backgroundColor: theme.colors.surface,
     marginBottom: GAP,
   },
   headerText: { color: theme.colors.textPrimary, fontSize: 18, fontWeight: '600' },
@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#191919',
+    backgroundColor: theme.colors.surface,
     paddingHorizontal: 6,
     paddingVertical: 4,
   },
@@ -116,5 +116,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: theme.colors.surfaceLight,
   },
-  emptyCell: { flex: 1, backgroundColor: '#191919' },
+  emptyCell: { flex: 1, backgroundColor: theme.colors.surface },
 });

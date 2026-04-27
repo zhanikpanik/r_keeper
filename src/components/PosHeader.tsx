@@ -12,19 +12,14 @@ interface Props {
   onSearchOpen: () => void;
   onSearchClose: () => void;
   tableNumber: string;
-  waiter: string;
-  guestCount: number;
-  isQuickCheck?: boolean;
   onTablePress?: () => void;
-  onWaiterPress?: () => void;
 }
 
 export const PosHeader: React.FC<Props> = ({
   onBack, searchMode, searchQuery, onSearchChange, onSearchOpen, onSearchClose,
-  tableNumber, waiter, guestCount, isQuickCheck,
-  onTablePress, onWaiterPress,
+  tableNumber,
+  onTablePress,
 }) => {
-  const time = `${new Date().getHours().toString().padStart(2, '0')}:${new Date().getMinutes().toString().padStart(2, '0')}`;
 
   if (searchMode) {
     return (
@@ -34,21 +29,9 @@ export const PosHeader: React.FC<Props> = ({
             <Text style={styles.backText}>Назад</Text>
           </TouchableOpacity>
 
-          {!isQuickCheck && (
-            <>
-              <TouchableOpacity style={[styles.chip, { marginLeft: 6 }]} onPress={onTablePress} activeOpacity={0.7}>
-                <Text style={styles.chipLabel}>Стол</Text>
-                <Text style={styles.chipValue}>{tableNumber || '—'}</Text>
-                <Feather name="chevron-down" size={14} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
-
-              <TouchableOpacity style={[styles.chip, { marginLeft: 2 }]} onPress={onWaiterPress} activeOpacity={0.7}>
-                <Text style={styles.chipLabel}>Официант</Text>
-                <Text style={styles.chipValue}>{waiter}</Text>
-                <Feather name="chevron-down" size={14} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
-            </>
-          )}
+          <TouchableOpacity style={styles.tableBtn} onPress={onTablePress} activeOpacity={0.7}>
+            <Text style={styles.tableBtnText}>{tableNumber ? `Стол ${tableNumber}` : 'Назначить стол'}</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.searchRightSection}>
@@ -82,25 +65,9 @@ export const PosHeader: React.FC<Props> = ({
           <Text style={styles.backText}>Назад</Text>
         </TouchableOpacity>
 
-        {isQuickCheck ? (
-          <View style={[styles.chipStatic, { marginLeft: 6 }]}>
-            <Text style={styles.chipText}>Быстрый чек</Text>
-          </View>
-        ) : (
-          <>
-            <TouchableOpacity style={[styles.chip, { marginLeft: 6 }]} onPress={onTablePress} activeOpacity={0.7}>
-              <Text style={styles.chipLabel}>Стол</Text>
-              <Text style={styles.chipValue}>{tableNumber || '—'}</Text>
-              <Feather name="chevron-down" size={14} color={theme.colors.textSecondary} />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={[styles.chip, { marginLeft: 6 }]} onPress={onWaiterPress} activeOpacity={0.7}>
-              <Text style={styles.chipLabel}>Официант</Text>
-              <Text style={styles.chipValue}>{waiter}</Text>
-              <Feather name="chevron-down" size={14} color={theme.colors.textSecondary} />
-            </TouchableOpacity>
-          </>
-        )}
+        <TouchableOpacity style={styles.tableBtn} onPress={onTablePress} activeOpacity={0.7}>
+          <Text style={styles.tableBtnText}>{tableNumber ? `Стол ${tableNumber}` : 'Назначить стол'}</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Right actions */}
@@ -112,8 +79,6 @@ export const PosHeader: React.FC<Props> = ({
         <TouchableOpacity style={styles.iconButton} onPress={onSearchOpen}>
           <SearchIcon size={22} color={theme.colors.textPrimary} />
         </TouchableOpacity>
-
-        <Text style={styles.timeText}>{time}</Text>
       </View>
     </View>
   );
@@ -121,15 +86,17 @@ export const PosHeader: React.FC<Props> = ({
 
 const styles = StyleSheet.create({
   container: {
-    height: 52,
+    height: 44,
     flexDirection: 'row',
     paddingHorizontal: 8,
     alignItems: 'center',
     gap: 8,
+    marginTop: 8,
+    marginBottom: 8,
   },
   backButton: {
     height: 44,
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
     backgroundColor: theme.colors.surfaceLight,
     justifyContent: 'center',
     alignItems: 'center',
@@ -146,41 +113,20 @@ const styles = StyleSheet.create({
     flex: 0.35,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
   },
-  chip: {
+  tableBtn: {
     height: 44,
-    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.surfaceLight,
-    borderRadius: theme.borderRadius,
-    paddingHorizontal: 12,
-    gap: 6,
-  },
-  chipLabel: {
-    color: theme.colors.textSecondary,
-    fontSize: 14,
-  },
-  chipValue: {
-    color: theme.colors.textPrimary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  chipStatic: {
-    height: 44,
     justifyContent: 'center',
-    alignItems: 'center',
     backgroundColor: theme.colors.surfaceLight,
     borderRadius: theme.borderRadius,
     paddingHorizontal: 12,
   },
-  chipText: {
+  tableBtnText: {
     color: theme.colors.textPrimary,
     fontSize: 14,
     fontWeight: '600',
-  },
-  chipTextSub: {
-    color: theme.colors.textSecondary,
-    fontSize: 14,
   },
 
   // Right actions
@@ -198,11 +144,6 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  timeText: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 14,
-    marginLeft: 4,
   },
 
   // Search mode

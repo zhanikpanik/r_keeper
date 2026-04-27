@@ -32,14 +32,15 @@ export interface OrderItem {
   comment?: string;
 }
 
-export type OrderStatus = 'active' | 'paid' | 'alert' | 'inactive';
+export type OrderStatus = 'active' | 'paid' | 'alert' | 'cancelled';
 
 export interface Order {
   id: string;
   number: string;
   status: OrderStatus;
   waiter: string;
-  openedAt: string;
+  openedAt: string;  // ISO string
+  closedAt?: string;  // ISO string, set when paid/cancelled
   zone: string;
   type: string;
   totalAmount: number;
@@ -49,6 +50,7 @@ export interface Order {
   guests: Guest[];
   items: OrderItem[];
   isQuickCheck?: boolean; // "Быстрый чек" — no table
+  closeReason?: string;   // set when closed without payment
   hasNote?: boolean;
   hasAlert?: boolean;
   hasEdit?: boolean;

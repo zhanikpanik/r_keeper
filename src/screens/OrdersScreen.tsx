@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, StyleSheet, Text, TextInput, TouchableOpacity, SafeAreaView, StatusBar, useWindowDimensions } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../theme/colors';
@@ -12,7 +12,6 @@ import { ShiftInfoModal } from '../components/ShiftInfoModal';
 import { CloseShiftModal } from '../components/CloseShiftModal';
 import { useShiftStore } from '../store/shiftStore';
 import { useOrderStore } from '../store/orderStore';
-import { useMenuStore } from '../store/menuStore';
 import { useVenueStore, VenueTable } from '../store/venueStore';
 import { Order } from '../types';
 
@@ -39,26 +38,21 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const openOrder = useOrderStore((s) => s.openOrder);
   const [menuVisible, setMenuVisible] = useState(false);
   const [zoneIdx, setZoneIdx] = useState(0);
-  const [waiterFilterIdx, setWaiterFilterIdx] = useState(-1); // -1 = all
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'paid'>('all');
   const [reportVisible, setReportVisible] = useState(false);
   const [shiftInfoVisible, setShiftInfoVisible] = useState(false);
   const [closeShiftVisible, setCloseShiftVisible] = useState(false);
   const [searchActive, setSearchActive] = useState(false);
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+  const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
+  const [sortMode, setSortMode] = useState<'time' | 'table'>('time');
   const closeShift = useShiftStore((s) => s.closeShift);
   const logout = useShiftStore((s) => s.logout);
   const [searchQuery, setSearchQuery] = useState('');
   const isOrders = activeTab === 'orders';
-  const fetchMenu = useMenuStore((s) => s.fetchMenu);
-  const fetchVenue = useVenueStore((s) => s.fetchVenue);
-  const fetchOrders = useOrderStore((s) => s.fetchOrders);
   const venueZones = useVenueStore((s) => s.zones);
-  const waiters = useVenueStore((s) => s.waiters);
 
-  useEffect(() => {
-    fetchMenu();
-    fetchVenue();
-    fetchOrders();
-  }, []);
+  // Data is fetched once at App level — no need to re-fetch on mount
 
   // ── Dynamic rows based on screen height ──
   const { height, width } = useWindowDimensions();
@@ -73,15 +67,12 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const cardHeight = (gridHeight - GAP * (ROWS - 1)) / ROWS;
   const scale = Math.max(0.8, Math.min(1.5, cardHeight / 120));
 
-  // ── Filter orders by waiter ──
-  const waiterFilterName = waiterFilterIdx >= 0 ? waiters[waiterFilterIdx]?.name : null;
-  const waiterFiltered = waiterFilterName
-    ? orders.filter((o) => o.waiter === waiterFilterName)
-    : orders;
+  // ── Filter orders by status ──
+  const statusFiltered = statusFilter === 'all' ? orders : orders.filter(o => o.status === statusFilter);
 
   // ── Filter orders by search ──
   const filteredOrders = searchQuery.trim()
-    ? waiterFiltered.filter((o) => {
+    ? statusFiltered.filter((o) => {
         const q = searchQuery.toLowerCase();
         return (
           o.number.toLowerCase().includes(q) ||
@@ -90,19 +81,32 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           (o.zone && o.zone.toLowerCase().includes(q))
         );
       })
-    : waiterFiltered;
+    : statusFiltered;
+
+  const STATUS_LABELS: Record<string, string> = {
+    all: 'Все заказы',
+    active: 'Открытые заказы',
+    paid: 'Закрытые заказы',
+  };
+
+  const SORT_LABELS: Record<string, string> = {
+    time: 'По времени',
+    table: 'По столам',
+  };
+
+  // ── Sort ──
+  const sortedOrders = [...filteredOrders].sort((a, b) => {
+    if (sortMode === 'table') return (a.tableNumber || '').localeCompare(b.tableNumber || '', undefined, { numeric: true });
+    return 0; // 'time' — already sorted by DB query
+  });
 
   // ── Pagination (orders only) ──
-  const totalItems = filteredOrders.length;
+  const totalItems = sortedOrders.length;
   const needsPagination = totalItems > ORDER_SLOTS;
   const slotsThisView = needsPagination ? ORDER_SLOTS - 1 : ORDER_SLOTS;
   const totalPages = needsPagination ? Math.ceil(totalItems / slotsThisView) : 1;
-  const pageItems = filteredOrders.slice(page * slotsThisView, page * slotsThisView + slotsThisView);
+  const pageItems = sortedOrders.slice(page * slotsThisView, page * slotsThisView + slotsThisView);
 
-  // ── "Новый заказ" → switch to tables tab to pick a table ──
-  const handleNewOrder = () => {
-    setActiveTab('tables');
-  };
 
   const handleQuickCheck = () => {
     createQuickCheck();
@@ -111,17 +115,19 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   const handleSelectOrder = (orderId: string) => {
     openOrder(orderId);
-    navigation.navigate('Pos');
+    const order = useOrderStore.getState().orders.find(o => o.id === orderId);
+    navigation.navigate(order?.status === 'paid' ? 'PaidCheck' : 'Pos');
   };
 
   // ── Table tap ──
   const handleTablePress = (table: VenueTable, existingOrder?: Order) => {
     if (existingOrder) {
       openOrder(existingOrder.id);
+      navigation.navigate(existingOrder.status === 'paid' ? 'PaidCheck' : 'Pos');
     } else {
       createOrderForTable(table.id, table.number, table.zone);
+      navigation.navigate('Pos');
     }
-    navigation.navigate('Pos');
   };
 
   const handlePageUp = () => setPage((p) => Math.max(0, p - 1));
@@ -152,78 +158,87 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
         {/* ═══ HEADER ROW ═══ */}
         <View style={[styles.headerRow, { marginHorizontal: PADDING, marginBottom: GAP }]}>
-          <View style={[styles.filterBox, { flex: 2, marginRight: GAP }]}>
-            <TouchableOpacity
-              style={styles.filterArrow}
-              onPress={() => {
-                if (isOrders) {
-                  setWaiterFilterIdx(i => Math.max(-1, i - 1));
-                  setPage(0);
-                } else if (venueZones.length > 0) {
-                  setZoneIdx(i => Math.max(0, i - 1));
-                }
-              }}
-            >
-              <Feather name="chevron-left" size={22} color={theme.colors.textPrimary} />
-            </TouchableOpacity>
-            <View style={styles.filterCenter}>
-              <Text style={[styles.filterLabel, { fontSize: 16 }]}>
-                {isOrders
-                  ? (waiterFilterIdx < 0 ? 'Все официанты' : (waiters[waiterFilterIdx]?.name || 'Все официанты'))
-                  : (venueZones[zoneIdx]?.name || 'Загрузка...')}
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.filterArrow}
-              onPress={() => {
-                if (isOrders) {
-                  setWaiterFilterIdx(i => Math.min(waiters.length - 1, i + 1));
-                  setPage(0);
-                } else if (venueZones.length > 0) {
-                  setZoneIdx(i => Math.min(venueZones.length - 1, i + 1));
-                }
-              }}
-            >
-              <Feather name="chevron-right" size={22} color={theme.colors.textPrimary} />
-            </TouchableOpacity>
-          </View>
-
           {searchActive ? (
-            <View style={[styles.searchInputWrap, { flex: 2 }]}>
-              <SearchIcon size={20} color={theme.colors.textSecondary} />
+            <View style={styles.searchInputWrap}>
+              <SearchIcon size={18} color={theme.colors.textSecondary} />
               <TextInput
-                style={[styles.searchInput, { fontSize: 16 }]}
+                style={styles.searchInput}
                 placeholder="Номер, стол, официант..."
                 placeholderTextColor={theme.colors.textSecondary}
                 value={searchQuery}
                 onChangeText={(text) => { setSearchQuery(text); setPage(0); }}
                 autoFocus
               />
-              <TouchableOpacity
-                onPress={() => { setSearchActive(false); setSearchQuery(''); setPage(0); }}
-                style={styles.searchCloseBtn}
-              >
-                <Feather name="x" size={20} color={theme.colors.textSecondary} />
+              <TouchableOpacity onPress={() => { setSearchActive(false); setSearchQuery(''); setPage(0); }} style={styles.searchCloseBtn}>
+                <Feather name="x" size={18} color={theme.colors.textSecondary} />
               </TouchableOpacity>
             </View>
           ) : (
             <>
-              <TouchableOpacity
-                style={[styles.reportBtn, { flex: 1, marginRight: GAP }]}
-                onPress={() => setReportVisible(true)}
-              >
-                <Text style={[styles.reportLabel, { fontSize: 14 }]}>Отчет</Text>
+              {/* Status filter chip */}
+              <View style={styles.dropdownWrap}>
+                <TouchableOpacity
+                  style={styles.filterChip}
+                  onPress={() => { setStatusDropdownOpen(o => !o); setSortDropdownOpen(false); }}
+                >
+                  <Text style={styles.filterChipText}>{STATUS_LABELS[statusFilter]}</Text>
+                  <Feather name="chevron-down" size={16} color={theme.colors.textSecondary} />
+                </TouchableOpacity>
+                {statusDropdownOpen && (
+                  <View style={styles.dropdown}>
+                    {(['all', 'active', 'paid'] as const).map(s => (
+                      <TouchableOpacity
+                        key={s}
+                        style={[styles.dropdownItem, statusFilter === s && styles.dropdownItemActive]}
+                        onPress={() => { setStatusFilter(s); setStatusDropdownOpen(false); setPage(0); }}
+                      >
+                        <Text style={[styles.dropdownItemText, statusFilter === s && styles.dropdownItemTextActive]}>
+                          {STATUS_LABELS[s]}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+
+              {/* Sort chip — only on orders tab */}
+              {isOrders && (
+                <View style={[styles.dropdownWrap, { marginLeft: GAP }]}>
+                  <TouchableOpacity
+                    style={styles.filterChip}
+                    onPress={() => { setSortDropdownOpen(o => !o); setStatusDropdownOpen(false); }}
+                  >
+                    <Text style={styles.filterChipText}>{SORT_LABELS[sortMode]}</Text>
+                    <Feather name="chevron-down" size={16} color={theme.colors.textSecondary} />
+                  </TouchableOpacity>
+                  {sortDropdownOpen && (
+                    <View style={styles.dropdown}>
+                      {(['time', 'table'] as const).map(s => (
+                        <TouchableOpacity
+                          key={s}
+                          style={[styles.dropdownItem, sortMode === s && styles.dropdownItemActive]}
+                          onPress={() => { setSortMode(s); setSortDropdownOpen(false); }}
+                        >
+                          <Text style={[styles.dropdownItemText, sortMode === s && styles.dropdownItemTextActive]}>{SORT_LABELS[s]}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {/* Spacer */}
+              <View style={{ flex: 1 }} />
+
+              {/* Notification */}
+              <TouchableOpacity style={[styles.iconBtn, { marginRight: GAP }]}>
+                <NotificationIcon size={22} color={theme.colors.textPrimary} />
               </TouchableOpacity>
 
-              <View style={[styles.headerRight, { flex: 1 }]}>
-                <TouchableOpacity style={[styles.bellBtn, { marginRight: GAP }]}>
-                  <NotificationIcon size={28} color="#FF9800" />
-                  <Text style={[styles.bellBadge, { fontSize: 14 }]}>2</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.searchBtn} onPress={() => setSearchActive(true)}>
-                  <SearchIcon size={28} color={theme.colors.textPrimary} />
-                </TouchableOpacity>
-              </View>
+              {/* Search icon */}
+              <TouchableOpacity style={styles.iconBtn} onPress={() => { setSearchActive(true); setStatusDropdownOpen(false); setSortDropdownOpen(false); }}>
+                <SearchIcon size={22} color={theme.colors.textPrimary} />
+              </TouchableOpacity>
             </>
           )}
         </View>
@@ -244,13 +259,9 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   >
                     {cell.kind === 'actions' && (
                       <View style={styles.actionsCell}>
-                        <TouchableOpacity style={[styles.actionHalf, { marginRight: GAP }]} onPress={handleNewOrder}>
+                        <TouchableOpacity style={styles.actionFull} onPress={handleQuickCheck}>
                           <Feather name="plus" size={24} color="#fff" />
                           <Text style={[styles.actionLabel, { fontSize: 14 }]}>Новый{'\n'}заказ</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.actionHalf} onPress={handleQuickCheck}>
-                          <Feather name="plus" size={24} color="#fff" />
-                          <Text style={[styles.actionLabel, { fontSize: 14 }]}>Быстрый{'\n'}чек</Text>
                         </TouchableOpacity>
                       </View>
                     )}
@@ -327,45 +338,65 @@ export const OrdersScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: theme.colors.background },
-  root: { flex: 1 },
+  safeArea: { flex: 1, backgroundColor: '#1A1A1A' },
+  root: { flex: 1, backgroundColor: '#1A1A1A' },
 
   headerRow: {
     height: 44,
     flexDirection: 'row',
     alignItems: 'stretch',
     marginTop: PADDING,
+    zIndex: 1000,
+    overflow: 'visible',
   },
-  filterBox: {
+  filterChip: {
     flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#333',
+    borderRadius: theme.borderRadius,
+    paddingHorizontal: 14,
+    height: 44,
+    gap: 6,
+    minWidth: 140,
+  },
+  filterChipText: { color: theme.colors.textPrimary, fontSize: 14, fontWeight: '600' },
+  dropdownWrap: { position: 'relative', zIndex: 100 },
+  dropdown: {
+    position: 'absolute',
+    top: 48,
+    left: 0,
+    minWidth: 200,
+    backgroundColor: '#2a2a2a',
     borderRadius: theme.borderRadius,
     overflow: 'hidden',
-  },
-  filterArrow: { width: 44, justifyContent: 'center', alignItems: 'center' },
-  filterCenter: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
+    borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
+    zIndex: 200,
   },
-  filterLabel: { color: theme.colors.textPrimary, fontSize: 15, fontWeight: '600' },
-  reportBtn: {
+  dropdownItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  dropdownItemActive: { backgroundColor: 'rgba(0,200,83,0.15)' },
+  dropdownItemText: { color: theme.colors.textSecondary, fontSize: 14 },
+  dropdownItemTextActive: { color: '#00C853', fontWeight: '600' },
+  iconBtn: {
+    width: 44,
+    height: 44,
     backgroundColor: '#333',
     borderRadius: theme.borderRadius,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  reportLabel: { color: theme.colors.textPrimary, fontSize: 14, fontWeight: '600' },
   searchInputWrap: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#333',
     borderRadius: theme.borderRadius,
     paddingHorizontal: 12,
     gap: 8,
+    height: 44,
   },
   searchInput: {
     flex: 1,
@@ -374,27 +405,7 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     outlineStyle: 'none',
   } as any,
-  searchCloseBtn: {
-    padding: 4,
-  },
-  headerRight: { flexDirection: 'row' },
-  bellBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    backgroundColor: '#333',
-    borderRadius: theme.borderRadius,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 4,
-  },
-  bellBadge: { color: '#FF9800', fontSize: 14, fontWeight: 'bold' },
-  searchBtn: {
-    flex: 1,
-    backgroundColor: '#333',
-    borderRadius: theme.borderRadius,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  searchCloseBtn: { padding: 4 },
 
   gridArea: { flex: 1, marginBottom: GAP },
   gridRow: { flex: 1, flexDirection: 'row' },
@@ -407,6 +418,14 @@ const styles = StyleSheet.create({
 
   actionsCell: { flex: 1, flexDirection: 'row' },
   actionHalf: {
+    flex: 1,
+    backgroundColor: '#00C853',
+    borderRadius: theme.borderRadius,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 4,
+  },
+  actionFull: {
     flex: 1,
     backgroundColor: '#00C853',
     borderRadius: theme.borderRadius,

@@ -5,8 +5,8 @@ import { useOrderStore } from '../store/orderStore';
 import { useVenueStore, VenueTable } from '../store/venueStore';
 import { Order } from '../types';
 
-const SIZE_W: Record<string, number> = { small: 1, regular: 2, wide: 3, tall: 1, bar: 1 };
-const SIZE_H: Record<string, number> = { small: 1, regular: 1, wide: 1, tall: 2, bar: 3 };
+const SIZE_W: Record<string, number> = { small: 1, regular: 2, wide: 3, tall: 1, bar: 1, square: 2 };
+const SIZE_H: Record<string, number> = { small: 1, regular: 1, wide: 1, tall: 2, bar: 3, square: 2 };
 
 const GAP = 8;
 const PADDING = 16;
@@ -30,7 +30,7 @@ export const FloorPlan: React.FC<Props> = ({ onTablePress, zoneIdx = 0 }) => {
   };
 
   const getOrderForTable = (tableId: string): Order | undefined => {
-    return orders.find(o => o.tableId === tableId && o.status !== 'inactive');
+    return orders.find(o => o.tableId === tableId && o.status !== 'cancelled');
   };
 
   const getTableColor = (order?: Order): string => {

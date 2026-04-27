@@ -6,10 +6,13 @@ import { LogBox } from 'react-native';
 import { OrdersScreen } from './src/screens/OrdersScreen';
 import { PosScreen } from './src/screens/PosScreen';
 import { PaymentScreen } from './src/screens/PaymentScreen';
+import { PaidCheckScreen } from './src/screens/PaidCheckScreen';
 import { LockScreen } from './src/screens/LockScreen';
 import { OpenShiftScreen } from './src/screens/OpenShiftScreen';
 import { useShiftStore } from './src/store/shiftStore';
 import { useVenueStore } from './src/store/venueStore';
+import { useMenuStore } from './src/store/menuStore';
+import { useOrderStore } from './src/store/orderStore';
 
 // Ignore specific warnings coming from react-native-web or navigation libraries
 LogBox.ignoreLogs([
@@ -24,9 +27,14 @@ export default function App() {
   const hasShift = useShiftStore((s) => s.currentShift !== null);
   const fetchVenue = useVenueStore((s) => s.fetchVenue);
 
-  // Load venue data (users/tables/zones) on app start for PIN validation
+  const fetchMenu = useMenuStore((s) => s.fetchMenu);
+  const fetchOrders = useOrderStore((s) => s.fetchOrders);
+
+  // Load all data once on app start
   useEffect(() => {
     fetchVenue();
+    fetchMenu();
+    fetchOrders();
   }, []);
 
   // Determine initial route
@@ -50,6 +58,7 @@ export default function App() {
         <Stack.Screen name="Orders" component={OrdersScreen} />
         <Stack.Screen name="Pos" component={PosScreen} />
         <Stack.Screen name="Payment" component={PaymentScreen} />
+        <Stack.Screen name="PaidCheck" component={PaidCheckScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

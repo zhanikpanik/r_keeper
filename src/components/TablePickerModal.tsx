@@ -5,8 +5,8 @@ import { theme } from '../theme/colors';
 import { useOrderStore } from '../store/orderStore';
 import { useVenueStore, VenueTable } from '../store/venueStore';
 
-const SIZE_W: Record<string, number> = { small: 1, regular: 2, wide: 3, tall: 1, bar: 1 };
-const SIZE_H: Record<string, number> = { small: 1, regular: 1, wide: 1, tall: 2, bar: 3 };
+const SIZE_W: Record<string, number> = { small: 1, regular: 2, wide: 3, tall: 1, bar: 1, square: 2 };
+const SIZE_H: Record<string, number> = { small: 1, regular: 1, wide: 1, tall: 2, bar: 3, square: 2 };
 
 const GAP = 8;
 
@@ -28,7 +28,7 @@ export const TablePickerModal: React.FC<Props> = ({ visible, onClose }) => {
   };
 
   const getOrderForTable = (id: string) => {
-    return orders.find(o => o.tableId === id && o.status !== 'inactive');
+    return orders.find(o => o.tableId === id && o.status !== 'cancelled');
   };
 
   const getTableColor = (table: VenueTable): string => {
@@ -40,15 +40,26 @@ export const TablePickerModal: React.FC<Props> = ({ visible, onClose }) => {
   };
 
   const handleSelect = (table: VenueTable) => {
-    useOrderStore.setState((state) => ({
+    const state = useOrderStore.getState();
+    const total = state.items.reduce((sum, i) => sum + i.product.price * i.quantity, 0);
+    useOrderStore.setState({
       tableNumber: table.number,
       tableId: table.id,
+      isQuickCheck: false,
       orders: state.orders.map(o =>
         o.id === state.currentOrderId
-          ? { ...o, tableNumber: table.number, tableId: table.id, zone: table.zone }
+          ? {
+              ...o,
+              tableNumber: table.number,
+              tableId: table.id,
+              zone: table.zone,
+              isQuickCheck: false,
+              totalAmount: total,
+              items: state.items,
+            }
           : o
       ),
-    }));
+    });
     onClose();
   };
 

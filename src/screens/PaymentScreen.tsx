@@ -3,6 +3,9 @@ import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, StatusBar } fro
 import { theme } from '../theme/colors';
 import { useOrderStore } from '../store/orderStore';
 import { useShiftStore } from '../store/shiftStore';
+import { supabase } from '../utils/supabase';
+
+const VENUE_ID = '00000000-0000-0000-0000-000000000010';
 
 const formatAmount = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 
@@ -41,22 +44,39 @@ export const PaymentScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
     setCashInput(String(total));
   };
 
-  const handlePay = () => {
+  const handlePay = async () => {
     if (!canPay || !currentOrderId) return;
 
-    // Record payment in shift
+    const shiftId = useShiftStore.getState().currentShift?.id ?? null;
+
+    // Record payment in shift store
     if (method !== 'none') {
       useShiftStore.getState().recordPayment(method, total);
     }
 
-    // Update order status to paid and sync to Supabase
+    // Insert payment record into Supabase
+    const { error: payError } = await supabase.from('payments').insert({
+      order_id: currentOrderId,
+      venue_id: VENUE_ID,
+      shift_id: shiftId,
+      method: method === 'none' ? 'none' : method,
+      amount: total,
+      change_amount: method === 'cash' ? Math.max(0, cashAmount - total) : 0,
+      close_reason: method === 'none' ? (closeReason ?? '') : null,
+    });
+    if (payError) console.error('insert payment:', payError.message);
+
+    // Update order status and sync to Supabase
+    const newStatus = method === 'none' ? 'cancelled' as const : 'paid' as const;
     useOrderStore.setState((state) => ({
       orders: state.orders.map(o =>
-        o.id === currentOrderId ? { ...o, status: 'paid' as const } : o
+        o.id === currentOrderId
+          ? { ...o, status: newStatus, closedAt: new Date().toISOString(), closeReason: method === 'none' ? (closeReason ?? '') : undefined }
+          : o
       ),
     }));
 
-    // Close order (will sync the paid status to Supabase)
+    // Close order (will sync the paid status + closed_at to Supabase)
     useOrderStore.getState().closeOrder();
     navigation?.navigate('Orders');
   };

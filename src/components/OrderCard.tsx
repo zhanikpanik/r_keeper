@@ -9,6 +9,12 @@ const formatAmount = (amount: number): string => {
   return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 };
 
+const formatTime = (iso: string): string => {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
+};
+
 
 
 interface Props {
@@ -29,7 +35,7 @@ export const OrderCard: React.FC<Props> = ({ order, onPress, scale = 1 }) => {
       case 'active': return theme.colors.orderDefault;
       case 'paid': return theme.colors.orderActive;
       case 'alert': return theme.colors.orderAlert;
-      case 'inactive': return theme.colors.orderInactive;
+      case 'cancelled': return '#4A0A0A';
       default: return theme.colors.orderDefault;
     }
   };
@@ -58,15 +64,11 @@ export const OrderCard: React.FC<Props> = ({ order, onPress, scale = 1 }) => {
 
       {/* Bottom group: table, dishes, waiter */}
       <View>
-        {order.isQuickCheck ? (
-          <Text style={styles.middle}>Быстрый чек</Text>
-        ) : (
-          <>
-            {order.tableNumber ? (
-              <Text style={styles.middle}>Стол {order.tableNumber}</Text>
-            ) : null}
-          </>
-        )}
+        {order.status === 'cancelled' && order.closeReason ? (
+          <Text style={styles.closeReason}>{order.closeReason}</Text>
+        ) : order.tableNumber ? (
+          <Text style={styles.middle}>Стол {order.tableNumber}</Text>
+        ) : null}
         {dishPreview ? (
           <View style={styles.dishPreviewWrap}>
             <Text style={styles.dishPreview} numberOfLines={1}>{dishPreview}</Text>
@@ -79,8 +81,7 @@ export const OrderCard: React.FC<Props> = ({ order, onPress, scale = 1 }) => {
           </View>
         ) : null}
         <View style={styles.bottomRow}>
-          <Text style={styles.details}>{order.waiter}</Text>
-          <Text style={styles.details}>{order.openedAt}</Text>
+          <Text style={styles.details}>{formatTime(order.openedAt)}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -117,6 +118,11 @@ const styles = StyleSheet.create({
     opacity: 0.8,
     fontWeight: '500',
     fontSize: 14,
+  },
+  closeReason: {
+    color: '#FF8A80',
+    fontWeight: '600',
+    fontSize: 13,
   },
   dishPreviewWrap: {
     overflow: 'hidden',

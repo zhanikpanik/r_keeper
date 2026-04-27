@@ -8,7 +8,7 @@ export interface VenueTable {
   capacity: number;
   col: number;
   row: number;
-  size: 'small' | 'regular' | 'wide' | 'tall' | 'bar';
+  size: 'small' | 'regular' | 'wide' | 'tall' | 'bar' | 'square';
 }
 
 export interface VenueZone {
